@@ -1,0 +1,7 @@
+-- +goose Up
+CREATE EXTENSION IF NOT EXISTS pgcrypto;
+CREATE EXTENSION IF NOT EXISTS btree_gist;
+
+-- +goose Down
+DROP EXTENSION IF EXISTS btree_gist;
+DROP EXTENSION IF EXISTS pgcrypto;
