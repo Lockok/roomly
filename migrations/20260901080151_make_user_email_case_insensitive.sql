@@ -1,0 +1,9 @@
+-- +goose Up
+CREATE EXTENSION IF NOT EXISTS citext;
+
+ALTER TABLE users ALTER COLUMN email TYPE CITEXT;
+
+-- +goose Down
+ALTER TABLE users ALTER COLUMN email TYPE TEXT;
+
+DROP EXTENSION IF EXISTS citext;
