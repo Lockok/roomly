@@ -13,6 +13,7 @@ import (
 	"github.com/Lockok/roomly/internal/platform/db"
 	"github.com/Lockok/roomly/internal/platform/health"
 	"github.com/Lockok/roomly/internal/platform/middleware"
+	"github.com/Lockok/roomly/internal/room"
 )
 
 func main() {
@@ -34,8 +35,15 @@ func main() {
 	defer pool.Close()
 
 	mux := http.NewServeMux()
+
+	roomRepository := room.NewPostgresRepository(pool)
+	roomService := room.NewService(roomRepository)
+	roomHandler := room.NewHandler(roomService)
+
 	mux.HandleFunc("GET /health/live", health.Live)
 	mux.HandleFunc("GET /health/ready", health.Ready(pool))
+	mux.HandleFunc("POST /api/v1/rooms", roomHandler.Create)
+	mux.HandleFunc("GET /api/v1/rooms", roomHandler.List)
 
 	handler := middleware.RequestID(
 		middleware.Recovery(mux),
