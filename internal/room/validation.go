@@ -69,3 +69,19 @@ func (input UpdateInput) Validate() error {
 
 	return nil
 }
+
+func (input AvailabilityInput) Validate() error {
+	if input.StartsAt.IsZero() {
+		return ValidationError{Message: "starts_at is required"}
+	}
+
+	if input.EndsAt.IsZero() {
+		return ValidationError{Message: "ends_at is required"}
+	}
+
+	if !input.EndsAt.After(input.StartsAt) {
+		return ValidationError{Message: "ends_at must be after starts_at"}
+	}
+
+	return nil
+}

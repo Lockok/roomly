@@ -13,10 +13,11 @@ import (
 )
 
 type fakeUseCase struct {
-	create  func(ctx context.Context, input CreateInput) (Room, error)
-	list    func(ctx context.Context, filter ListFilter) ([]Room, error)
-	getByID func(ctx context.Context, id uuid.UUID) (Room, error)
-	update  func(ctx context.Context, input UpdateInput) (Room, error)
+	create        func(ctx context.Context, input CreateInput) (Room, error)
+	list          func(ctx context.Context, filter ListFilter) ([]Room, error)
+	listAvailable func(ctx context.Context, input AvailabilityInput) ([]Room, error)
+	getByID       func(ctx context.Context, id uuid.UUID) (Room, error)
+	update        func(ctx context.Context, input UpdateInput) (Room, error)
 }
 
 func (f fakeUseCase) Create(ctx context.Context, input CreateInput) (Room, error) {
@@ -29,6 +30,14 @@ func (f fakeUseCase) List(ctx context.Context, filter ListFilter) ([]Room, error
 	}
 
 	return f.list(ctx, filter)
+}
+
+func (f fakeUseCase) ListAvailable(ctx context.Context, input AvailabilityInput) ([]Room, error) {
+	if f.listAvailable == nil {
+		return nil, nil
+	}
+
+	return f.listAvailable(ctx, input)
 }
 
 func (f fakeUseCase) GetByID(ctx context.Context, id uuid.UUID) (Room, error) {
@@ -390,6 +399,84 @@ func TestHandlerListRejectsInvalidActiveFilter(t *testing.T) {
 	}
 
 	if response.Body.String() != "{\"code\":\"INVALID_ACTIVE_FILTER\",\"message\":\"active must be true or false\"}\n" {
+		t.Fatalf("unexpected response body: %q", response.Body.String())
+	}
+}
+
+func TestHandlerListAvailableSuccess(t *testing.T) {
+	startsAt := "2026-09-10T10:00:00+03:00"
+	endsAt := "2026-09-10T11:00:00+03:00"
+
+	useCase := fakeUseCase{
+		listAvailable: func(
+			_ context.Context,
+			input AvailabilityInput,
+		) ([]Room, error) {
+			if input.StartsAt.Format(time.RFC3339) != startsAt {
+				t.Fatalf(
+					"expected starts_at %s, got %s",
+					startsAt,
+					input.StartsAt.Format(time.RFC3339),
+				)
+			}
+
+			if input.EndsAt.Format(time.RFC3339) != endsAt {
+				t.Fatalf(
+					"expected ends_at %s, got %s",
+					endsAt,
+					input.EndsAt.Format(time.RFC3339),
+				)
+			}
+
+			return []Room{}, nil
+		},
+	}
+
+	handler := NewHandler(useCase)
+
+	request := httptest.NewRequest(
+		http.MethodGet,
+		"/api/v1/rooms/available?starts_at=2026-09-10T10%3A00%3A00%2B03%3A00&ends_at=2026-09-10T11%3A00%3A00%2B03%3A00",
+		nil,
+	)
+	response := httptest.NewRecorder()
+
+	handler.ListAvailable(response, request)
+
+	if response.Code != http.StatusOK {
+		t.Fatalf("expected status %d, got %d", http.StatusOK, response.Code)
+	}
+
+	if response.Body.String() != "[]\n" {
+		t.Fatalf("expected empty JSON array, got %q", response.Body.String())
+	}
+}
+
+func TestHandlerListAvailableRejectsInvalidStartsAt(t *testing.T) {
+	handler := NewHandler(fakeUseCase{
+		listAvailable: func(
+			_ context.Context,
+			_ AvailabilityInput,
+		) ([]Room, error) {
+			t.Fatal("use case must not be called for invalid starts_at")
+			return nil, nil
+		},
+	})
+
+	request := httptest.NewRequest(
+		http.MethodGet,
+		"/api/v1/rooms/available?starts_at=invalid&ends_at=2026-09-10T11%3A00%3A00%2B03%3A00",
+		nil,
+	)
+	response := httptest.NewRecorder()
+
+	handler.ListAvailable(response, request)
+
+	if response.Code != http.StatusBadRequest {
+		t.Fatalf("expected status %d, got %d", http.StatusBadRequest, response.Code)
+	}
+
+	if response.Body.String() != "{\"code\":\"INVALID_STARTS_AT\",\"message\":\"starts_at must be a valid RFC3339 timestamp\"}\n" {
 		t.Fatalf("unexpected response body: %q", response.Body.String())
 	}
 }

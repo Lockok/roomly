@@ -28,6 +28,14 @@ func (s *Service) List(ctx context.Context, filter ListFilter) ([]Room, error) {
 	return s.repository.List(ctx, filter)
 }
 
+func (s *Service) ListAvailable(ctx context.Context, input AvailabilityInput) ([]Room, error) {
+	if err := input.Validate(); err != nil {
+		return nil, err
+	}
+
+	return s.repository.ListAvailable(ctx, input)
+}
+
 func (s *Service) GetByID(ctx context.Context, id uuid.UUID) (Room, error) {
 	return s.repository.GetByID(ctx, id)
 }
