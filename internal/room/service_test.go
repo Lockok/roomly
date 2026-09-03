@@ -10,7 +10,7 @@ import (
 
 type fakeRepository struct {
 	create  func(ctx context.Context, input CreateInput) (Room, error)
-	list    func(ctx context.Context) ([]Room, error)
+	list    func(ctx context.Context, list ListFilter) ([]Room, error)
 	getByID func(ctx context.Context, id uuid.UUID) (Room, error)
 	update  func(ctx context.Context, input UpdateInput) (Room, error)
 }
@@ -23,12 +23,12 @@ func (f fakeRepository) Create(ctx context.Context, input CreateInput) (Room, er
 	return f.create(ctx, input)
 }
 
-func (f fakeRepository) List(ctx context.Context) ([]Room, error) {
+func (f fakeRepository) List(ctx context.Context, filter ListFilter) ([]Room, error) {
 	if f.list == nil {
 		return nil, nil
 	}
 
-	return f.list(ctx)
+	return f.list(ctx, filter)
 }
 
 func (f fakeRepository) GetByID(ctx context.Context, id uuid.UUID) (Room, error) {

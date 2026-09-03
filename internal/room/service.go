@@ -24,8 +24,8 @@ func (s *Service) Create(ctx context.Context, input CreateInput) (Room, error) {
 	return s.repository.Create(ctx, input)
 }
 
-func (s *Service) List(ctx context.Context) ([]Room, error) {
-	return s.repository.List(ctx)
+func (s *Service) List(ctx context.Context, filter ListFilter) ([]Room, error) {
+	return s.repository.List(ctx, filter)
 }
 
 func (s *Service) GetByID(ctx context.Context, id uuid.UUID) (Room, error) {

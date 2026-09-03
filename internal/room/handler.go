@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"net/http"
+	"strconv"
 
 	"github.com/Lockok/roomly/internal/platform/httputil"
 	"github.com/google/uuid"
@@ -80,7 +81,24 @@ func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) List(w http.ResponseWriter, r *http.Request) {
-	rooms, err := h.useCase.List(r.Context())
+	filter := ListFilter{}
+
+	activeValue := r.URL.Query().Get("active")
+	if activeValue != "" {
+		isActive, err := strconv.ParseBool(activeValue)
+		if err != nil {
+			httputil.WriteError(
+				w,
+				http.StatusBadRequest,
+				"INVALID_ACTIVE_FILTER",
+				"active must be true or false",
+			)
+			return
+		}
+
+		filter.IsActive = &isActive
+	}
+	rooms, err := h.useCase.List(r.Context(), filter)
 
 	if err != nil {
 		httputil.WriteError(
