@@ -178,3 +178,88 @@ func (r *PostgresRepository) GetByID(ctx context.Context, id uuid.UUID) (Room, e
 
 	return result, nil
 }
+
+func (r *PostgresRepository) Update(ctx context.Context, input UpdateInput) (Room, error) {
+	var equipmentJSON []byte
+	var err error
+
+	if input.Equipment.Set {
+		equipmentJSON, err = json.Marshal(input.Equipment.Value)
+		if err != nil {
+			return Room{}, fmt.Errorf("marshal equipment: %w", err)
+		}
+	}
+
+	const query = `
+		UPDATE rooms
+		SET
+			name = CASE WHEN $2 THEN $3 ELSE name END,
+			location = CASE WHEN $4 THEN $5 ELSE location END,
+			floor = CASE WHEN $6 THEN $7 ELSE floor END,
+			capacity = CASE WHEN $8 THEN $9 ELSE capacity END,
+			equipment = CASE WHEN $10 THEN $11::jsonb ELSE equipment END,
+			description = CASE WHEN $12 THEN $13 ELSE description END,
+			is_active = CASE WHEN $14 THEN $15 ELSE is_active END
+		WHERE id = $1
+		RETURNING
+			id,
+			name,
+			location,
+			floor,
+			capacity,
+			equipment,
+			description,
+			is_active,
+			created_at,
+			updated_at;
+	`
+
+	var result Room
+
+	err = r.pool.QueryRow(
+		ctx,
+		query,
+		input.ID,
+		input.Name.Set,
+		input.Name.Value,
+		input.Location.Set,
+		input.Location.Value,
+		input.Floor.Set,
+		input.Floor.Value,
+		input.Capacity.Set,
+		input.Capacity.Value,
+		input.Equipment.Set,
+		equipmentJSON,
+		input.Description.Set,
+		input.Description.Value,
+		input.IsActive.Set,
+		input.IsActive.Value,
+	).Scan(
+		&result.ID,
+		&result.Name,
+		&result.Location,
+		&result.Floor,
+		&result.Capacity,
+		&result.Equipment,
+		&result.Description,
+		&result.IsActive,
+		&result.CreatedAt,
+		&result.UpdatedAt,
+	)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return Room{}, ErrNotFound
+		}
+
+		var pgErr *pgconn.PgError
+		if errors.As(err, &pgErr) &&
+			pgErr.Code == "23505" &&
+			pgErr.ConstraintName == roomsUniqueNamePerLocationConstraint {
+			return Room{}, ErrAlreadyExists
+		}
+
+		return Room{}, fmt.Errorf("update room: %w", err)
+	}
+
+	return result, nil
+}

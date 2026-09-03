@@ -135,3 +135,86 @@ func (h *Handler) GetByID(w http.ResponseWriter, r *http.Request) {
 
 	httputil.WriteJSON(w, http.StatusOK, NewRoomResponse(foundRoom))
 }
+
+func (h *Handler) Update(w http.ResponseWriter, r *http.Request) {
+	id, err := uuid.Parse(r.PathValue("id"))
+	if err != nil {
+		httputil.WriteError(
+			w,
+			http.StatusBadRequest,
+			"INVALID_ROOM_ID",
+			"room ID must be a valid UUID",
+		)
+		return
+	}
+
+	var request UpdateRequest
+
+	decoder := json.NewDecoder(r.Body)
+	decoder.DisallowUnknownFields()
+
+	if err := decoder.Decode(&request); err != nil {
+		httputil.WriteError(
+			w,
+			http.StatusBadRequest,
+			"INVALID_JSON",
+			"request body must contain valid JSON",
+		)
+		return
+	}
+
+	input := UpdateInput{
+		ID:          id,
+		Name:        request.Name,
+		Location:    request.Location,
+		Floor:       request.Floor,
+		Capacity:    request.Capacity,
+		Equipment:   request.Equipment,
+		Description: request.Description,
+		IsActive:    request.IsActive,
+	}
+
+	updatedRoom, err := h.useCase.Update(r.Context(), input)
+	if err != nil {
+		if errors.Is(err, ErrNotFound) {
+			httputil.WriteError(
+				w,
+				http.StatusNotFound,
+				"ROOM_NOT_FOUND",
+				"room not found",
+			)
+			return
+		}
+
+		if errors.Is(err, ErrAlreadyExists) {
+			httputil.WriteError(
+				w,
+				http.StatusConflict,
+				"ROOM_ALREADY_EXISTS",
+				"room with this name already exists in this location",
+			)
+			return
+		}
+
+		var validationErr ValidationError
+		if errors.As(err, &validationErr) {
+			httputil.WriteError(
+				w,
+				http.StatusBadRequest,
+				"VALIDATION_ERROR",
+				validationErr.Message,
+			)
+			return
+		}
+
+		httputil.WriteError(
+			w,
+			http.StatusInternalServerError,
+			"INTERNAL_ERROR",
+			"internal server error",
+		)
+		return
+	}
+
+	httputil.WriteJSON(w, http.StatusOK, NewRoomResponse(updatedRoom))
+}
