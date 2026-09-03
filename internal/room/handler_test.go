@@ -14,7 +14,7 @@ import (
 
 type fakeUseCase struct {
 	create  func(ctx context.Context, input CreateInput) (Room, error)
-	list    func(ctx context.Context) ([]Room, error)
+	list    func(ctx context.Context, filter ListFilter) ([]Room, error)
 	getByID func(ctx context.Context, id uuid.UUID) (Room, error)
 	update  func(ctx context.Context, input UpdateInput) (Room, error)
 }
@@ -23,12 +23,12 @@ func (f fakeUseCase) Create(ctx context.Context, input CreateInput) (Room, error
 	return f.create(ctx, input)
 }
 
-func (f fakeUseCase) List(ctx context.Context) ([]Room, error) {
+func (f fakeUseCase) List(ctx context.Context, filter ListFilter) ([]Room, error) {
 	if f.list == nil {
 		return nil, nil
 	}
 
-	return f.list(ctx)
+	return f.list(ctx, filter)
 }
 
 func (f fakeUseCase) GetByID(ctx context.Context, id uuid.UUID) (Room, error) {
@@ -111,7 +111,7 @@ func TestHandlerCreateSuccess(t *testing.T) {
 
 func TestHandlerListSuccess(t *testing.T) {
 	useCase := fakeUseCase{
-		list: func(_ context.Context) ([]Room, error) {
+		list: func(_ context.Context, _ ListFilter) ([]Room, error) {
 			return []Room{
 				{
 					ID:        uuid.New(),
@@ -158,7 +158,7 @@ func TestHandlerListSuccess(t *testing.T) {
 
 func TestHandlerListEmpty(t *testing.T) {
 	useCase := fakeUseCase{
-		list: func(_ context.Context) ([]Room, error) {
+		list: func(_ context.Context, _ ListFilter) ([]Room, error) {
 			return []Room{}, nil
 		},
 	}
@@ -333,6 +333,63 @@ func TestHandlerUpdateRejectsUnknownField(t *testing.T) {
 	}
 
 	if response.Body.String() != "{\"code\":\"INVALID_JSON\",\"message\":\"request body must contain valid JSON\"}\n" {
+		t.Fatalf("unexpected response body: %q", response.Body.String())
+	}
+}
+
+func TestHandlerListWithActiveFilter(t *testing.T) {
+	useCase := fakeUseCase{
+		list: func(_ context.Context, filter ListFilter) ([]Room, error) {
+			if filter.IsActive == nil {
+				t.Fatal("expected active filter")
+			}
+
+			if !*filter.IsActive {
+				t.Fatal("expected active filter to be true")
+			}
+
+			return []Room{}, nil
+		},
+	}
+
+	handler := NewHandler(useCase)
+
+	request := httptest.NewRequest(
+		http.MethodGet,
+		"/api/v1/rooms?active=true",
+		nil,
+	)
+	response := httptest.NewRecorder()
+
+	handler.List(response, request)
+
+	if response.Code != http.StatusOK {
+		t.Fatalf("expected status %d, got %d", http.StatusOK, response.Code)
+	}
+}
+
+func TestHandlerListRejectsInvalidActiveFilter(t *testing.T) {
+	handler := NewHandler(fakeUseCase{
+		list: func(_ context.Context, _ ListFilter) ([]Room, error) {
+			t.Fatal("use case must not be called for invalid filter")
+			return nil, nil
+		},
+	})
+
+	request := httptest.NewRequest(
+		http.MethodGet,
+		"/api/v1/rooms?active=maybe",
+		nil,
+	)
+	response := httptest.NewRecorder()
+
+	handler.List(response, request)
+
+	if response.Code != http.StatusBadRequest {
+		t.Fatalf("expected status %d, got %d", http.StatusBadRequest, response.Code)
+	}
+
+	if response.Body.String() != "{\"code\":\"INVALID_ACTIVE_FILTER\",\"message\":\"active must be true or false\"}\n" {
 		t.Fatalf("unexpected response body: %q", response.Body.String())
 	}
 }

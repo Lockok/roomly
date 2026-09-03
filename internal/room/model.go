@@ -39,3 +39,7 @@ type UpdateInput struct {
 	Description optional.Optional[string]
 	IsActive    optional.Optional[bool]
 }
+
+type ListFilter struct {
+	IsActive *bool
+}

@@ -85,7 +85,7 @@ func (r *PostgresRepository) Create(ctx context.Context, input CreateInput) (Roo
 	return result, nil
 }
 
-func (r *PostgresRepository) List(ctx context.Context) ([]Room, error) {
+func (r *PostgresRepository) List(ctx context.Context, filter ListFilter) ([]Room, error) {
 	const query = `
 		SELECT
 			id,
@@ -99,9 +99,10 @@ func (r *PostgresRepository) List(ctx context.Context) ([]Room, error) {
 			created_at,
 			updated_at
 		FROM rooms
+		WHERE ($1::boolean IS NULL OR is_active = $1)
 		ORDER BY location ASC, name ASC;
 	`
-	rows, err := r.pool.Query(ctx, query)
+	rows, err := r.pool.Query(ctx, query, filter.IsActive)
 	if err != nil {
 		return nil, fmt.Errorf("list rooms: %w", err)
 	}
