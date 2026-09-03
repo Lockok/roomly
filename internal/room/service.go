@@ -1,6 +1,10 @@
 package room
 
-import "context"
+import (
+	"context"
+
+	"github.com/google/uuid"
+)
 
 type Service struct {
 	repository Repository
@@ -22,4 +26,8 @@ func (s *Service) Create(ctx context.Context, input CreateInput) (Room, error) {
 
 func (s *Service) List(ctx context.Context) ([]Room, error) {
 	return s.repository.List(ctx)
+}
+
+func (s *Service) GetByID(ctx context.Context, id uuid.UUID) (Room, error) {
+	return s.repository.GetByID(ctx, id)
 }

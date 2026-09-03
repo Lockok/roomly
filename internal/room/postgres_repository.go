@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -134,4 +135,46 @@ func (r *PostgresRepository) List(ctx context.Context) ([]Room, error) {
 	}
 
 	return rooms, nil
+}
+
+func (r *PostgresRepository) GetByID(ctx context.Context, id uuid.UUID) (Room, error) {
+	const query = `
+		SELECT
+			id,
+			name,
+			location,
+			floor,
+			capacity,
+			equipment,
+			description,
+			is_active,
+			created_at,
+			updated_at
+		FROM rooms
+		WHERE id = $1;
+	`
+
+	var result Room
+
+	err := r.pool.QueryRow(ctx, query, id).Scan(
+		&result.ID,
+		&result.Name,
+		&result.Location,
+		&result.Floor,
+		&result.Capacity,
+		&result.Equipment,
+		&result.Description,
+		&result.IsActive,
+		&result.CreatedAt,
+		&result.UpdatedAt,
+	)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return Room{}, ErrNotFound
+		}
+
+		return Room{}, fmt.Errorf("get room by ID: %w", err)
+	}
+
+	return result, nil
 }
