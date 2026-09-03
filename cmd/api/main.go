@@ -45,6 +45,7 @@ func main() {
 	mux.HandleFunc("POST /api/v1/rooms", roomHandler.Create)
 	mux.HandleFunc("GET /api/v1/rooms", roomHandler.List)
 	mux.HandleFunc("GET /api/v1/rooms/{id}", roomHandler.GetByID)
+	mux.HandleFunc("PATCH /api/v1/rooms/{id}", roomHandler.Update)
 
 	handler := middleware.RequestID(
 		middleware.Recovery(mux),

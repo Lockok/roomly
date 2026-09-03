@@ -1,6 +1,10 @@
 package room
 
-import "time"
+import (
+	"time"
+
+	"github.com/Lockok/roomly/internal/platform/optional"
+)
 
 type CreateRequest struct {
 	Name        string   `json:"name"`
@@ -9,6 +13,16 @@ type CreateRequest struct {
 	Capacity    int      `json:"capacity"`
 	Equipment   []string `json:"equipment"`
 	Description *string  `json:"description"`
+}
+
+type UpdateRequest struct {
+	Name        optional.Optional[string]   `json:"name"`
+	Location    optional.Optional[string]   `json:"location"`
+	Floor       optional.Optional[int]      `json:"floor"`
+	Capacity    optional.Optional[int]      `json:"capacity"`
+	Equipment   optional.Optional[[]string] `json:"equipment"`
+	Description optional.Optional[string]   `json:"description"`
+	IsActive    optional.Optional[bool]     `json:"is_active"`
 }
 
 type RoomResponse struct {

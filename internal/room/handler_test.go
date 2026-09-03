@@ -16,6 +16,7 @@ type fakeUseCase struct {
 	create  func(ctx context.Context, input CreateInput) (Room, error)
 	list    func(ctx context.Context) ([]Room, error)
 	getByID func(ctx context.Context, id uuid.UUID) (Room, error)
+	update  func(ctx context.Context, input UpdateInput) (Room, error)
 }
 
 func (f fakeUseCase) Create(ctx context.Context, input CreateInput) (Room, error) {
@@ -35,6 +36,14 @@ func (f fakeUseCase) GetByID(ctx context.Context, id uuid.UUID) (Room, error) {
 		return Room{}, ErrNotFound
 	}
 	return f.getByID(ctx, id)
+}
+
+func (f fakeUseCase) Update(ctx context.Context, input UpdateInput) (Room, error) {
+	if f.update == nil {
+		return Room{}, ErrNotFound
+	}
+
+	return f.update(ctx, input)
 }
 
 func TestHandlerCreateSuccess(t *testing.T) {
@@ -220,6 +229,110 @@ func TestHandlerGetByIDNotFound(t *testing.T) {
 	}
 
 	if response.Body.String() != "{\"code\":\"ROOM_NOT_FOUND\",\"message\":\"room not found\"}\n" {
+		t.Fatalf("unexpected response body: %q", response.Body.String())
+	}
+}
+
+func TestHandlerUpdateSuccess(t *testing.T) {
+	roomID := uuid.New()
+
+	useCase := fakeUseCase{
+		update: func(_ context.Context, input UpdateInput) (Room, error) {
+			if input.ID != roomID {
+				t.Fatalf("expected room ID %s, got %s", roomID, input.ID)
+			}
+
+			if !input.Capacity.Set || input.Capacity.Value == nil || *input.Capacity.Value != 12 {
+				t.Fatal("expected capacity update to 12")
+			}
+
+			if !input.Floor.Set || input.Floor.Value != nil {
+				t.Fatal("expected floor to be explicitly set to null")
+			}
+
+			return Room{
+				ID:        roomID,
+				Name:      "Alpha",
+				Location:  "HQ",
+				Capacity:  12,
+				Equipment: []string{"tv"},
+				IsActive:  true,
+				CreatedAt: time.Now(),
+				UpdatedAt: time.Now(),
+			}, nil
+		},
+	}
+
+	handler := NewHandler(useCase)
+
+	request := httptest.NewRequest(
+		http.MethodPatch,
+		"/api/v1/rooms/"+roomID.String(),
+		strings.NewReader(`{
+			"capacity": 12,
+			"floor": null
+		}`),
+	)
+	request.SetPathValue("id", roomID.String())
+
+	response := httptest.NewRecorder()
+
+	handler.Update(response, request)
+
+	if response.Code != http.StatusOK {
+		t.Fatalf("expected status %d, got %d", http.StatusOK, response.Code)
+	}
+}
+
+func TestHandlerUpdateInvalidID(t *testing.T) {
+	handler := NewHandler(fakeUseCase{})
+
+	request := httptest.NewRequest(
+		http.MethodPatch,
+		"/api/v1/rooms/not-a-uuid",
+		strings.NewReader(`{"capacity": 12}`),
+	)
+	request.SetPathValue("id", "not-a-uuid")
+
+	response := httptest.NewRecorder()
+
+	handler.Update(response, request)
+
+	if response.Code != http.StatusBadRequest {
+		t.Fatalf("expected status %d, got %d", http.StatusBadRequest, response.Code)
+	}
+
+	if response.Body.String() != "{\"code\":\"INVALID_ROOM_ID\",\"message\":\"room ID must be a valid UUID\"}\n" {
+		t.Fatalf("unexpected response body: %q", response.Body.String())
+	}
+}
+
+func TestHandlerUpdateRejectsUnknownField(t *testing.T) {
+	roomID := uuid.New()
+
+	handler := NewHandler(fakeUseCase{
+		update: func(_ context.Context, _ UpdateInput) (Room, error) {
+			t.Fatal("use case must not be called for invalid JSON")
+			return Room{}, nil
+		},
+	})
+
+	request := httptest.NewRequest(
+		http.MethodPatch,
+		"/api/v1/rooms/"+roomID.String(),
+		strings.NewReader(`{"unknown_field": "value"}`),
+	)
+	request.SetPathValue("id", roomID.String())
+
+	response := httptest.NewRecorder()
+
+	handler.Update(response, request)
+
+	if response.Code != http.StatusBadRequest {
+		t.Fatalf("expected status %d, got %d", http.StatusBadRequest, response.Code)
+	}
+
+	if response.Body.String() != "{\"code\":\"INVALID_JSON\",\"message\":\"request body must contain valid JSON\"}\n" {
 		t.Fatalf("unexpected response body: %q", response.Body.String())
 	}
 }

@@ -31,3 +31,11 @@ func (s *Service) List(ctx context.Context) ([]Room, error) {
 func (s *Service) GetByID(ctx context.Context, id uuid.UUID) (Room, error) {
 	return s.repository.GetByID(ctx, id)
 }
+
+func (s *Service) Update(ctx context.Context, input UpdateInput) (Room, error) {
+	if err := input.Validate(); err != nil {
+		return Room{}, err
+	}
+
+	return s.repository.Update(ctx, input)
+}
