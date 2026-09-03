@@ -6,6 +6,7 @@ import (
 	"net/http"
 
 	"github.com/Lockok/roomly/internal/platform/httputil"
+	"github.com/google/uuid"
 )
 
 type Handler struct {
@@ -97,4 +98,40 @@ func (h *Handler) List(w http.ResponseWriter, r *http.Request) {
 	}
 
 	httputil.WriteJSON(w, http.StatusOK, response)
+}
+
+func (h *Handler) GetByID(w http.ResponseWriter, r *http.Request) {
+	id, err := uuid.Parse(r.PathValue("id"))
+	if err != nil {
+		httputil.WriteError(
+			w,
+			http.StatusBadRequest,
+			"INVALID_ROOM_ID",
+			"room ID must be a valid UUID",
+		)
+		return
+	}
+
+	foundRoom, err := h.useCase.GetByID(r.Context(), id)
+	if err != nil {
+		if errors.Is(err, ErrNotFound) {
+			httputil.WriteError(
+				w,
+				http.StatusNotFound,
+				"ROOM_NOT_FOUND",
+				"room not found",
+			)
+			return
+		}
+
+		httputil.WriteError(
+			w,
+			http.StatusInternalServerError,
+			"INTERNAL_ERROR",
+			"internal server error",
+		)
+		return
+	}
+
+	httputil.WriteJSON(w, http.StatusOK, NewRoomResponse(foundRoom))
 }
