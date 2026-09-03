@@ -138,6 +138,68 @@ func (r *PostgresRepository) List(ctx context.Context, filter ListFilter) ([]Roo
 	return rooms, nil
 }
 
+func (r *PostgresRepository) ListAvailable(ctx context.Context, input AvailabilityInput) ([]Room, error) {
+	const query = `
+		SELECT
+			r.id,
+			r.name,
+			r.location,
+			r.floor,
+			r.capacity,
+			r.equipment,
+			r.description,
+			r.is_active,
+			r.created_at,
+			r.updated_at
+		FROM rooms AS r
+		WHERE r.is_active = TRUE
+		  AND NOT EXISTS (
+			  SELECT 1
+			  FROM bookings AS b
+			  WHERE b.room_id = r.id
+			    AND b.status = 'confirmed'
+			    AND tstzrange(b.starts_at, b.ends_at, '[)')
+			        && tstzrange($1, $2, '[)')
+		  )
+		ORDER BY r.location ASC, r.name ASC;
+	`
+
+	rows, err := r.pool.Query(ctx, query, input.StartsAt, input.EndsAt)
+	if err != nil {
+		return nil, fmt.Errorf("list available error: %w", err)
+	}
+	defer rows.Close()
+
+	rooms := make([]Room, 0)
+
+	for rows.Next() {
+		var result Room
+
+		if err := rows.Scan(
+			&result.ID,
+			&result.Name,
+			&result.Location,
+			&result.Floor,
+			&result.Capacity,
+			&result.Equipment,
+			&result.Description,
+			&result.IsActive,
+			&result.CreatedAt,
+			&result.UpdatedAt,
+		); err != nil {
+			return nil, fmt.Errorf("scan available room: %w", err)
+		}
+
+		rooms = append(rooms, result)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate available room: %w", err)
+	}
+
+	return rooms, nil
+}
+
 func (r *PostgresRepository) GetByID(ctx context.Context, id uuid.UUID) (Room, error) {
 	const query = `
 		SELECT

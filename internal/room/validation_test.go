@@ -2,6 +2,7 @@ package room
 
 import (
 	"testing"
+	"time"
 
 	"github.com/Lockok/roomly/internal/platform/optional"
 )
@@ -155,4 +156,68 @@ func stringPointer(value string) *string {
 
 func intPointer(value int) *int {
 	return &value
+}
+
+func TestAvailabilityInputValidate(t *testing.T) {
+	startsAt := time.Date(2026, 9, 10, 10, 0, 0, 0, time.UTC)
+	endsAt := time.Date(2026, 9, 10, 11, 0, 0, 0, time.UTC)
+
+	tests := []struct {
+		name    string
+		input   AvailabilityInput
+		wantErr bool
+	}{
+		{
+			name: "valid interval",
+			input: AvailabilityInput{
+				StartsAt: startsAt,
+				EndsAt:   endsAt,
+			},
+			wantErr: false,
+		},
+		{
+			name: "missing start",
+			input: AvailabilityInput{
+				EndsAt: endsAt,
+			},
+			wantErr: true,
+		},
+		{
+			name: "missing end",
+			input: AvailabilityInput{
+				StartsAt: startsAt,
+			},
+			wantErr: true,
+		},
+		{
+			name: "equal timestamps",
+			input: AvailabilityInput{
+				StartsAt: startsAt,
+				EndsAt:   startsAt,
+			},
+			wantErr: true,
+		},
+		{
+			name: "end before start",
+			input: AvailabilityInput{
+				StartsAt: endsAt,
+				EndsAt:   startsAt,
+			},
+			wantErr: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := tt.input.Validate()
+
+			if tt.wantErr && err == nil {
+				t.Fatal("expected validation error, got nil")
+			}
+
+			if !tt.wantErr && err != nil {
+				t.Fatalf("expected no error, got %v", err)
+			}
+		})
+	}
 }

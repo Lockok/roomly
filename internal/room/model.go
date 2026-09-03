@@ -43,3 +43,8 @@ type UpdateInput struct {
 type ListFilter struct {
 	IsActive *bool
 }
+
+type AvailabilityInput struct {
+	StartsAt time.Time
+	EndsAt   time.Time
+}

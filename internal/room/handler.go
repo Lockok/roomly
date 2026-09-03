@@ -5,6 +5,7 @@ import (
 	"errors"
 	"net/http"
 	"strconv"
+	"time"
 
 	"github.com/Lockok/roomly/internal/platform/httputil"
 	"github.com/google/uuid"
@@ -101,6 +102,62 @@ func (h *Handler) List(w http.ResponseWriter, r *http.Request) {
 	rooms, err := h.useCase.List(r.Context(), filter)
 
 	if err != nil {
+		httputil.WriteError(
+			w,
+			http.StatusInternalServerError,
+			"INTERNAL_ERROR",
+			"internal server error",
+		)
+		return
+	}
+
+	response := make([]RoomResponse, 0, len(rooms))
+	for _, item := range rooms {
+		response = append(response, NewRoomResponse(item))
+	}
+
+	httputil.WriteJSON(w, http.StatusOK, response)
+}
+
+func (h *Handler) ListAvailable(w http.ResponseWriter, r *http.Request) {
+	startsAt, err := time.Parse(time.RFC3339, r.URL.Query().Get("starts_at"))
+	if err != nil {
+		httputil.WriteError(
+			w,
+			http.StatusBadRequest,
+			"INVALID_STARTS_AT",
+			"starts_at must be a valid RFC3339 timestamp",
+		)
+		return
+	}
+
+	endsAt, err := time.Parse(time.RFC3339, r.URL.Query().Get("ends_at"))
+	if err != nil {
+		httputil.WriteError(
+			w,
+			http.StatusBadRequest,
+			"INVALID_ENDS_AT",
+			"ends_at must be a valid RFC3339 timestamp",
+		)
+		return
+	}
+
+	rooms, err := h.useCase.ListAvailable(r.Context(), AvailabilityInput{
+		StartsAt: startsAt,
+		EndsAt:   endsAt,
+	})
+	if err != nil {
+		var validationErr ValidationError
+		if errors.As(err, &validationErr) {
+			httputil.WriteError(
+				w,
+				http.StatusBadRequest,
+				"VALIDATION_ERROR",
+				validationErr.Message,
+			)
+			return
+		}
+
 		httputil.WriteError(
 			w,
 			http.StatusInternalServerError,

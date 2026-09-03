@@ -44,6 +44,7 @@ func main() {
 	mux.HandleFunc("GET /health/ready", health.Ready(pool))
 	mux.HandleFunc("POST /api/v1/rooms", roomHandler.Create)
 	mux.HandleFunc("GET /api/v1/rooms", roomHandler.List)
+	mux.HandleFunc("GET /api/v1/rooms/available", roomHandler.ListAvailable)
 	mux.HandleFunc("GET /api/v1/rooms/{id}", roomHandler.GetByID)
 	mux.HandleFunc("PATCH /api/v1/rooms/{id}", roomHandler.Update)
 
