@@ -1,7 +1,6 @@
 package room
 
 import (
-	"encoding/json"
 	"errors"
 	"net/http"
 	"strconv"
@@ -24,15 +23,12 @@ func NewHandler(useCase UseCase) *Handler {
 func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 	var request CreateRequest
 
-	decoder := json.NewDecoder(r.Body)
-	decoder.DisallowUnknownFields()
-
-	if err := decoder.Decode(&request); err != nil {
+	if err := httputil.DecodeJSON(w, r, &request); err != nil {
 		httputil.WriteError(
 			w,
 			http.StatusBadRequest,
 			"INVALID_JSON",
-			"request body must containt valid JSON",
+			"request body must contain valid JSON",
 		)
 		return
 	}
@@ -225,10 +221,7 @@ func (h *Handler) Update(w http.ResponseWriter, r *http.Request) {
 
 	var request UpdateRequest
 
-	decoder := json.NewDecoder(r.Body)
-	decoder.DisallowUnknownFields()
-
-	if err := decoder.Decode(&request); err != nil {
+	if err := httputil.DecodeJSON(w, r, &request); err != nil {
 		httputil.WriteError(
 			w,
 			http.StatusBadRequest,
