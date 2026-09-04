@@ -480,3 +480,29 @@ func TestHandlerListAvailableRejectsInvalidStartsAt(t *testing.T) {
 		t.Fatalf("unexpected response body: %q", response.Body.String())
 	}
 }
+
+func TestHandlerCreateRejectsMultipleJSONValues(t *testing.T) {
+	handler := NewHandler(fakeUseCase{
+		create: func(_ context.Context, _ CreateInput) (Room, error) {
+			t.Fatal("use case must not be called for invalid JSON")
+			return Room{}, nil
+		},
+	})
+
+	request := httptest.NewRequest(
+		http.MethodPost,
+		"/api/v1/rooms",
+		strings.NewReader(`{"name":"Alpha","location":"HQ","capacity":10} {"name":"Beta","location":"HQ","capacity":8}`),
+	)
+	response := httptest.NewRecorder()
+
+	handler.Create(response, request)
+
+	if response.Code != http.StatusBadRequest {
+		t.Fatalf("expected status %d, got %d", http.StatusBadRequest, response.Code)
+	}
+
+	if response.Body.String() != "{\"code\":\"INVALID_JSON\",\"message\":\"request body must contain valid JSON\"}\n" {
+		t.Fatalf("unexpected response body: %q", response.Body.String())
+	}
+}
