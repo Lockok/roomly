@@ -9,6 +9,8 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/Lockok/roomly/internal/booking"
+	"github.com/Lockok/roomly/internal/platform/clock"
 	"github.com/Lockok/roomly/internal/platform/config"
 	"github.com/Lockok/roomly/internal/platform/db"
 	"github.com/Lockok/roomly/internal/platform/health"
@@ -40,6 +42,10 @@ func main() {
 	roomService := room.NewService(roomRepository)
 	roomHandler := room.NewHandler(roomService)
 
+	bookingRepository := booking.NewPostgresRepository(pool)
+	bookingService := booking.NewService(bookingRepository, roomService, clock.RealClock{})
+	bookingHandler := booking.NewHandler(bookingService)
+
 	mux.HandleFunc("GET /health/live", health.Live)
 	mux.HandleFunc("GET /health/ready", health.Ready(pool))
 	mux.HandleFunc("POST /api/v1/rooms", roomHandler.Create)
@@ -47,6 +53,7 @@ func main() {
 	mux.HandleFunc("GET /api/v1/rooms/available", roomHandler.ListAvailable)
 	mux.HandleFunc("GET /api/v1/rooms/{id}", roomHandler.GetByID)
 	mux.HandleFunc("PATCH /api/v1/rooms/{id}", roomHandler.Update)
+	mux.HandleFunc("POST /api/v1/bookings", bookingHandler.Create)
 
 	handler := middleware.RequestID(
 		middleware.Recovery(mux),
