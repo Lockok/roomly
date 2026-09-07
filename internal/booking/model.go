@@ -3,6 +3,7 @@ package booking
 import (
 	"time"
 
+	"github.com/Lockok/roomly/internal/platform/optional"
 	"github.com/google/uuid"
 )
 
@@ -27,4 +28,26 @@ type Booking struct {
 	CancelledBy    *uuid.UUID
 	CreatedAt      time.Time
 	UpdatedAt      time.Time
+}
+
+type ListFilter struct {
+	RoomID      *uuid.UUID
+	OrganizerID *uuid.UUID
+	Status      *Status
+	From        *time.Time
+	To          *time.Time
+}
+
+type UpdateInput struct {
+	ID             uuid.UUID
+	Title          optional.Optional[string]
+	Description    optional.Optional[string]
+	StartsAt       optional.Optional[time.Time]
+	EndsAt         optional.Optional[time.Time]
+	AttendeesCount optional.Optional[int]
+}
+
+type CancelInput struct {
+	ID          uuid.UUID
+	CancelledBy uuid.UUID
 }
