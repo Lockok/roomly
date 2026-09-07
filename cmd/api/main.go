@@ -54,6 +54,10 @@ func main() {
 	mux.HandleFunc("GET /api/v1/rooms/{id}", roomHandler.GetByID)
 	mux.HandleFunc("PATCH /api/v1/rooms/{id}", roomHandler.Update)
 	mux.HandleFunc("POST /api/v1/bookings", bookingHandler.Create)
+	mux.HandleFunc("GET /api/v1/bookings", bookingHandler.List)
+	mux.HandleFunc("GET /api/v1/bookings/{id}", bookingHandler.GetByID)
+	mux.HandleFunc("PATCH /api/v1/bookings/{id}", bookingHandler.Update)
+	mux.HandleFunc("POST /api/v1/bookings/{id}/cancel", bookingHandler.Cancel)
 
 	handler := middleware.RequestID(
 		middleware.Recovery(mux),
