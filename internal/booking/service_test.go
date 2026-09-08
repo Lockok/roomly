@@ -383,4 +383,30 @@ func TestServiceCancel(t *testing.T) {
 			t.Fatalf("expected ErrNotFound, got %v", err)
 		}
 	})
+
+	t.Run("cannot cancel started booking", func(t *testing.T) {
+		current := confirmedBooking(now, roomID)
+		current.StartsAt = now.Add(-time.Minute)
+
+		repository := fakeRepository{
+			getByID: func(_ context.Context, _ uuid.UUID) (Booking, error) {
+				return current, nil
+			},
+			cancel: func(_ context.Context, _ CancelInput) (Booking, error) {
+				t.Fatal("repository cancel must not be called")
+				return Booking{}, nil
+			},
+		}
+
+		service := NewService(repository, fakeRoomReader{}, fixedClock{now: now})
+
+		_, err := service.Cancel(
+			context.Background(),
+			CancelInput{ID: current.ID, CancelledBy: uuid.New()},
+		)
+
+		if !errors.Is(err, ErrBookingStarted) {
+			t.Fatalf("expected ErrBookingStarted, got %v", err)
+		}
+	})
 }
