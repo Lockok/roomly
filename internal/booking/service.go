@@ -132,5 +132,9 @@ func (s *Service) Cancel(ctx context.Context, input CancelInput) (Booking, error
 		return Booking{}, ErrAlreadyCancelled
 	}
 
+	if !current.StartsAt.After(s.clock.Now()) {
+		return Booking{}, ErrBookingStarted
+	}
+
 	return s.repository.Cancel(ctx, input)
 }
