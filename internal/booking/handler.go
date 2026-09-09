@@ -8,6 +8,7 @@ import (
 	"github.com/google/uuid"
 
 	"github.com/Lockok/roomly/internal/platform/httputil"
+	"github.com/Lockok/roomly/internal/platform/middleware"
 )
 
 type Handler struct {
@@ -44,17 +45,6 @@ func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	organizerID, err := uuid.Parse(request.OrganizerID)
-	if err != nil {
-		httputil.WriteError(
-			w,
-			http.StatusBadRequest,
-			"INVALID_ORGANIZER_ID",
-			"organizer_id must be a valid UUID",
-		)
-		return
-	}
-
 	startsAt, err := time.Parse(time.RFC3339, request.StartsAt)
 	if err != nil {
 		httputil.WriteError(
@@ -77,9 +67,20 @@ func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	currentUser, ok := middleware.GetCurrentUser(r.Context())
+	if !ok {
+		httputil.WriteError(
+			w,
+			http.StatusUnauthorized,
+			"UNAUTHORIZED",
+			"authorization token is required",
+		)
+		return
+	}
+
 	input := CreateInput{
 		RoomID:         roomID,
-		OrganizerID:    organizerID,
+		OrganizerID:    currentUser.ID,
 		Title:          request.Title,
 		Description:    request.Description,
 		StartsAt:       startsAt,
@@ -164,20 +165,18 @@ func (h *Handler) Cancel(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var request CancelRequest
-
-	if err := httputil.DecodeJSON(w, r, &request); err != nil {
-		httputil.WriteError(w, http.StatusBadRequest, "INVALID_JSON", "request body must contain valid JSON")
+	currentUser, ok := middleware.GetCurrentUser(r.Context())
+	if !ok {
+		httputil.WriteError(
+			w,
+			http.StatusUnauthorized,
+			"UNAUTHORIZED",
+			"authorization token is required",
+		)
 		return
 	}
 
-	cancelledBy, err := uuid.Parse(request.CancelledBy)
-	if err != nil {
-		httputil.WriteError(w, http.StatusBadRequest, "INVALID_CANCELLED_BY", "cancelled_by must be a valid UUID")
-		return
-	}
-
-	cancelled, err := h.useCase.Cancel(r.Context(), CancelInput{ID: id, CancelledBy: cancelledBy})
+	cancelled, err := h.useCase.Cancel(r.Context(), CancelInput{ID: id, CancelledBy: currentUser.ID})
 	if err != nil {
 		writeBookingError(w, err)
 		return

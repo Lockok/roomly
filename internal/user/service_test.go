@@ -10,7 +10,8 @@ import (
 )
 
 type fakeRepository struct {
-	create func(ctx context.Context, input CreateInput) (User, error)
+	create     func(ctx context.Context, input CreateInput) (User, error)
+	getByEmail func(ctx context.Context, email string) (User, error)
 }
 
 func (f fakeRepository) Create(ctx context.Context, input CreateInput) (User, error) {
@@ -27,6 +28,14 @@ func (f fakeRepository) List(context.Context, ListFilter) ([]User, error) {
 
 func (f fakeRepository) GetByID(context.Context, uuid.UUID) (User, error) {
 	return User{}, ErrNotFound
+}
+
+func (f fakeRepository) GetByEmail(ctx context.Context, email string) (User, error) {
+	if f.getByEmail == nil {
+		return User{}, ErrNotFound
+	}
+
+	return f.getByEmail(ctx, email)
 }
 
 func TestServiceCreateNormalizesInput(t *testing.T) {
