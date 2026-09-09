@@ -53,6 +53,7 @@ func main() {
 	authHandler := auth.NewHandler(authService)
 
 	requireAuth := middleware.RequireAuth(jwtService)
+	requireAdmin := middleware.RequireRole("admin")
 
 	bookingRepository := booking.NewPostgresRepository(pool)
 	bookingService := booking.NewService(bookingRepository, roomService, userService, clock.RealClock{})
@@ -63,11 +64,11 @@ func main() {
 
 	mux.HandleFunc("POST /api/v1/auth/login", authHandler.Login)
 
-	mux.HandleFunc("POST /api/v1/rooms", roomHandler.Create)
+	mux.Handle("POST /api/v1/rooms", requireAuth(requireAdmin(http.HandlerFunc(roomHandler.Create))))
 	mux.HandleFunc("GET /api/v1/rooms", roomHandler.List)
 	mux.HandleFunc("GET /api/v1/rooms/available", roomHandler.ListAvailable)
 	mux.HandleFunc("GET /api/v1/rooms/{id}", roomHandler.GetByID)
-	mux.HandleFunc("PATCH /api/v1/rooms/{id}", roomHandler.Update)
+	mux.Handle("PATCH /api/v1/rooms/{id}", requireAuth(requireAdmin(http.HandlerFunc(roomHandler.Update))))
 
 	mux.HandleFunc("POST /api/v1/users", userHandler.Create)
 	mux.HandleFunc("GET /api/v1/users", userHandler.List)

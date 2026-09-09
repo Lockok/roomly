@@ -94,6 +94,10 @@ func (s *Service) Update(ctx context.Context, input UpdateInput) (Booking, error
 		return Booking{}, err
 	}
 
+	if !canManageBooking(input.Actor, current) {
+		return Booking{}, ErrForbidden
+	}
+
 	if current.Status == StatusCancelled {
 		return Booking{}, ErrAlreadyCancelled
 	}
@@ -145,6 +149,10 @@ func (s *Service) Cancel(ctx context.Context, input CancelInput) (Booking, error
 		return Booking{}, err
 	}
 
+	if !canManageBooking(input.Actor, current) {
+		return Booking{}, ErrForbidden
+	}
+
 	if current.Status == StatusCancelled {
 		return Booking{}, ErrAlreadyCancelled
 	}
@@ -154,4 +162,8 @@ func (s *Service) Cancel(ctx context.Context, input CancelInput) (Booking, error
 	}
 
 	return s.repository.Cancel(ctx, input)
+}
+
+func canManageBooking(actor Actor, booking Booking) bool {
+	return actor.Role == "admin" || actor.ID == booking.OrganizerID
 }
