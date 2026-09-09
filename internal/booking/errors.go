@@ -10,6 +10,8 @@ var (
 	ErrNotFound         = errors.New("booking not found")
 	ErrAlreadyCancelled = errors.New("booking is already cancelled")
 	ErrBookingStarted   = errors.New("booking has already started or finished")
+	ErrOrganizerNotFound = errors.New("organizer not found")
+	ErrOrganizerInactive = errors.New("organizer is inactive")
 )
 
 type ValidationError struct {

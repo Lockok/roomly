@@ -16,6 +16,7 @@ import (
 	"github.com/Lockok/roomly/internal/platform/health"
 	"github.com/Lockok/roomly/internal/platform/middleware"
 	"github.com/Lockok/roomly/internal/room"
+	"github.com/Lockok/roomly/internal/user"
 )
 
 func main() {
@@ -42,17 +43,26 @@ func main() {
 	roomService := room.NewService(roomRepository)
 	roomHandler := room.NewHandler(roomService)
 
+	userRepository := user.NewPostgresRepository(pool)
+	userService := user.NewService(userRepository)
+	userHandler := user.NewHandler(userService)
+
 	bookingRepository := booking.NewPostgresRepository(pool)
-	bookingService := booking.NewService(bookingRepository, roomService, clock.RealClock{})
+	bookingService := booking.NewService(bookingRepository, roomService, userService, clock.RealClock{})
 	bookingHandler := booking.NewHandler(bookingService)
 
 	mux.HandleFunc("GET /health/live", health.Live)
 	mux.HandleFunc("GET /health/ready", health.Ready(pool))
+
 	mux.HandleFunc("POST /api/v1/rooms", roomHandler.Create)
 	mux.HandleFunc("GET /api/v1/rooms", roomHandler.List)
 	mux.HandleFunc("GET /api/v1/rooms/available", roomHandler.ListAvailable)
 	mux.HandleFunc("GET /api/v1/rooms/{id}", roomHandler.GetByID)
 	mux.HandleFunc("PATCH /api/v1/rooms/{id}", roomHandler.Update)
+
+	mux.HandleFunc("POST /api/v1/users", userHandler.Create)
+	mux.HandleFunc("GET /api/v1/users", userHandler.List)
+
 	mux.HandleFunc("POST /api/v1/bookings", bookingHandler.Create)
 	mux.HandleFunc("GET /api/v1/bookings", bookingHandler.List)
 	mux.HandleFunc("GET /api/v1/bookings/{id}", bookingHandler.GetByID)
