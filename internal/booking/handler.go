@@ -149,6 +149,22 @@ func (h *Handler) Update(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	currentUser, ok := middleware.GetCurrentUser(r.Context())
+	if !ok {
+		httputil.WriteError(
+			w,
+			http.StatusUnauthorized,
+			"UNAUTHORIZED",
+			"authorization token is required",
+		)
+		return
+	}
+
+	input.Actor = Actor{
+		ID:   currentUser.ID,
+		Role: currentUser.Role,
+	}
+
 	updated, err := h.useCase.Update(r.Context(), input)
 	if err != nil {
 		writeBookingError(w, err)
@@ -176,7 +192,7 @@ func (h *Handler) Cancel(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	cancelled, err := h.useCase.Cancel(r.Context(), CancelInput{ID: id, CancelledBy: currentUser.ID})
+	cancelled, err := h.useCase.Cancel(r.Context(), CancelInput{ID: id, CancelledBy: currentUser.ID, Actor: Actor{ID: currentUser.ID, Role: currentUser.Role}})
 	if err != nil {
 		writeBookingError(w, err)
 		return
@@ -205,6 +221,8 @@ func writeBookingError(w http.ResponseWriter, err error) {
 		httputil.WriteError(w, http.StatusConflict, "ALREADY_CANCELLED", "booking is already cancelled")
 	case errors.Is(err, ErrBookingStarted):
 		httputil.WriteError(w, http.StatusConflict, "BOOKING_STARTED", "booking has already started or finished")
+	case errors.Is(err, ErrForbidden):
+		httputil.WriteError(w, http.StatusForbidden, "FORBIDDEN", "you do not have permission to manage this booking")
 	default:
 		var validationErr ValidationError
 		if errors.As(err, &validationErr) {

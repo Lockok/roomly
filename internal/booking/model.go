@@ -38,8 +38,14 @@ type ListFilter struct {
 	To          *time.Time
 }
 
+type Actor struct {
+	ID   uuid.UUID
+	Role string
+}
+
 type UpdateInput struct {
 	ID             uuid.UUID
+	Actor          Actor
 	Title          optional.Optional[string]
 	Description    optional.Optional[string]
 	StartsAt       optional.Optional[time.Time]
@@ -50,4 +56,5 @@ type UpdateInput struct {
 type CancelInput struct {
 	ID          uuid.UUID
 	CancelledBy uuid.UUID
+	Actor       Actor
 }

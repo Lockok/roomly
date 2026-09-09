@@ -338,6 +338,11 @@ func TestServiceUpdate(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			tt.input.ID = tt.current.ID
 
+			tt.input.Actor = Actor{
+				ID:   tt.current.OrganizerID,
+				Role: "employee",
+			}
+
 			repository := fakeRepository{
 				getByID: func(_ context.Context, _ uuid.UUID) (Booking, error) {
 					return tt.current, tt.currentErr
@@ -401,7 +406,7 @@ func TestServiceCancel(t *testing.T) {
 
 		service := NewService(repository, fakeRoomReader{}, activeUserReader(), fixedClock{now: now})
 
-		result, err := service.Cancel(context.Background(), CancelInput{ID: current.ID, CancelledBy: uuid.New()})
+		result, err := service.Cancel(context.Background(), CancelInput{ID: current.ID, CancelledBy: current.OrganizerID, Actor: Actor{ID: current.OrganizerID, Role: "employee"}})
 		if err != nil {
 			t.Fatalf("expected no error, got %v", err)
 		}
@@ -423,7 +428,7 @@ func TestServiceCancel(t *testing.T) {
 
 		service := NewService(repository, fakeRoomReader{}, activeUserReader(), fixedClock{now: now})
 
-		_, err := service.Cancel(context.Background(), CancelInput{ID: current.ID, CancelledBy: uuid.New()})
+		_, err := service.Cancel(context.Background(), CancelInput{ID: current.ID, CancelledBy: current.OrganizerID, Actor: Actor{ID: current.OrganizerID, Role: "employee"}})
 		if !errors.Is(err, ErrAlreadyCancelled) {
 			t.Fatalf("expected ErrAlreadyCancelled, got %v", err)
 		}
@@ -438,7 +443,7 @@ func TestServiceCancel(t *testing.T) {
 
 		service := NewService(repository, fakeRoomReader{}, activeUserReader(), fixedClock{now: now})
 
-		_, err := service.Cancel(context.Background(), CancelInput{ID: uuid.New(), CancelledBy: uuid.New()})
+		_, err := service.Cancel(context.Background(), CancelInput{ID: uuid.New(), CancelledBy: uuid.New(), Actor: Actor{ID: uuid.New(), Role: "employee"}})
 		if !errors.Is(err, ErrNotFound) {
 			t.Fatalf("expected ErrNotFound, got %v", err)
 		}
@@ -462,11 +467,94 @@ func TestServiceCancel(t *testing.T) {
 
 		_, err := service.Cancel(
 			context.Background(),
-			CancelInput{ID: current.ID, CancelledBy: uuid.New()},
+			CancelInput{ID: current.ID, CancelledBy: current.OrganizerID, Actor: Actor{ID: current.OrganizerID, Role: "employee"}},
 		)
 
 		if !errors.Is(err, ErrBookingStarted) {
 			t.Fatalf("expected ErrBookingStarted, got %v", err)
 		}
 	})
+}
+
+func TestServiceUpdateRejectsNonOwner(t *testing.T) {
+	now := time.Date(2026, 9, 10, 9, 0, 0, 0, time.UTC)
+	current := confirmedBooking(now, uuid.New())
+
+	repository := fakeRepository{
+		getByID: func(_ context.Context, _ uuid.UUID) (Booking, error) {
+			return current, nil
+		},
+		update: func(_ context.Context, _ UpdateInput) (Booking, error) {
+			t.Fatal("repository update must not be called")
+			return Booking{}, nil
+		},
+	}
+
+	service := NewService(
+		repository,
+		fakeRoomReader{},
+		activeUserReader(),
+		fixedClock{now: now},
+	)
+
+	newTitle := "Unauthorized update"
+
+	_, err := service.Update(context.Background(), UpdateInput{
+		ID: current.ID,
+		Actor: Actor{
+			ID:   uuid.New(),
+			Role: "employee",
+		},
+		Title: optional.Optional[string]{
+			Set:   true,
+			Value: &newTitle,
+		},
+	})
+
+	if !errors.Is(err, ErrForbidden) {
+		t.Fatalf("expected ErrForbidden, got %v", err)
+	}
+}
+
+func TestServiceCancelAllowsAdmin(t *testing.T) {
+	now := time.Date(2026, 9, 10, 9, 0, 0, 0, time.UTC)
+	current := confirmedBooking(now, uuid.New())
+
+	repository := fakeRepository{
+		getByID: func(_ context.Context, _ uuid.UUID) (Booking, error) {
+			return current, nil
+		},
+		cancel: func(_ context.Context, input CancelInput) (Booking, error) {
+			if input.Actor.Role != "admin" {
+				t.Fatalf("expected admin actor, got %q", input.Actor.Role)
+			}
+
+			current.Status = StatusCancelled
+			return current, nil
+		},
+	}
+
+	service := NewService(
+		repository,
+		fakeRoomReader{},
+		activeUserReader(),
+		fixedClock{now: now},
+	)
+
+	result, err := service.Cancel(context.Background(), CancelInput{
+		ID:          current.ID,
+		CancelledBy: uuid.New(),
+		Actor: Actor{
+			ID:   uuid.New(),
+			Role: "admin",
+		},
+	})
+
+	if err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+
+	if result.Status != StatusCancelled {
+		t.Fatalf("expected cancelled status, got %q", result.Status)
+	}
 }
