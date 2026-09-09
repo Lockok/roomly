@@ -12,7 +12,6 @@ import (
 
 type CreateRequest struct {
 	RoomID         string  `json:"room_id"`
-	OrganizerID    string  `json:"organizer_id"`
 	Title          string  `json:"title"`
 	Description    *string `json:"description"`
 	StartsAt       string  `json:"starts_at"`
@@ -42,10 +41,6 @@ type UpdateRequest struct {
 	StartsAt       optional.Optional[string] `json:"starts_at"`
 	EndsAt         optional.Optional[string] `json:"ends_at"`
 	AttendeesCount optional.Optional[int]    `json:"attendees_count"`
-}
-
-type CancelRequest struct {
-	CancelledBy string `json:"cancelled_by"`
 }
 
 type ListResponse struct {

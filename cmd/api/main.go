@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/Lockok/roomly/internal/booking"
+	"github.com/Lockok/roomly/internal/platform/auth"
 	"github.com/Lockok/roomly/internal/platform/clock"
 	"github.com/Lockok/roomly/internal/platform/config"
 	"github.com/Lockok/roomly/internal/platform/db"
@@ -47,12 +48,20 @@ func main() {
 	userService := user.NewService(userRepository)
 	userHandler := user.NewHandler(userService)
 
+	jwtService := auth.NewJWTService(cfg.JWTSecret, cfg.JWTTTL)
+	authService := auth.NewService(userRepository, jwtService)
+	authHandler := auth.NewHandler(authService)
+
+	requireAuth := middleware.RequireAuth(jwtService)
+
 	bookingRepository := booking.NewPostgresRepository(pool)
 	bookingService := booking.NewService(bookingRepository, roomService, userService, clock.RealClock{})
 	bookingHandler := booking.NewHandler(bookingService)
 
 	mux.HandleFunc("GET /health/live", health.Live)
 	mux.HandleFunc("GET /health/ready", health.Ready(pool))
+
+	mux.HandleFunc("POST /api/v1/auth/login", authHandler.Login)
 
 	mux.HandleFunc("POST /api/v1/rooms", roomHandler.Create)
 	mux.HandleFunc("GET /api/v1/rooms", roomHandler.List)
@@ -63,11 +72,11 @@ func main() {
 	mux.HandleFunc("POST /api/v1/users", userHandler.Create)
 	mux.HandleFunc("GET /api/v1/users", userHandler.List)
 
-	mux.HandleFunc("POST /api/v1/bookings", bookingHandler.Create)
-	mux.HandleFunc("GET /api/v1/bookings", bookingHandler.List)
-	mux.HandleFunc("GET /api/v1/bookings/{id}", bookingHandler.GetByID)
-	mux.HandleFunc("PATCH /api/v1/bookings/{id}", bookingHandler.Update)
-	mux.HandleFunc("POST /api/v1/bookings/{id}/cancel", bookingHandler.Cancel)
+	mux.Handle("POST /api/v1/bookings", requireAuth(http.HandlerFunc(bookingHandler.Create)))
+	mux.Handle("GET /api/v1/bookings", requireAuth(http.HandlerFunc(bookingHandler.List)))
+	mux.Handle("GET /api/v1/bookings/{id}", requireAuth(http.HandlerFunc(bookingHandler.GetByID)))
+	mux.Handle("PATCH /api/v1/bookings/{id}", requireAuth(http.HandlerFunc(bookingHandler.Update)))
+	mux.Handle("POST /api/v1/bookings/{id}/cancel", requireAuth(http.HandlerFunc(bookingHandler.Cancel)))
 
 	handler := middleware.RequestID(
 		middleware.Recovery(mux),

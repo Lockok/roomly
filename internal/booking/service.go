@@ -14,7 +14,7 @@ import (
 type Service struct {
 	repository Repository
 	rooms      RoomReader
-	users	   UserReader
+	users      UserReader
 	clock      clock.Clock
 }
 
@@ -52,15 +52,15 @@ func (s *Service) Create(ctx context.Context, input CreateInput) (Booking, error
 
 	organizer, err := s.users.GetByID(ctx, input.OrganizerID)
 	if err != nil {
-	if errors.Is(err, user.ErrNotFound) {
-		return Booking{}, ErrOrganizerNotFound
+		if errors.Is(err, user.ErrNotFound) {
+			return Booking{}, ErrOrganizerNotFound
+		}
+
+		return Booking{}, err
 	}
 
-	return Booking{}, err
-}
-
 	if !organizer.IsActive {
-	return Booking{}, ErrOrganizerInactive
+		return Booking{}, ErrOrganizerInactive
 	}
 
 	if input.AttendeesCount > targetRoom.Capacity {

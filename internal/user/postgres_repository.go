@@ -141,3 +141,30 @@ func (r *PostgresRepository) GetByID(ctx context.Context, id uuid.UUID) (User, e
 
 	return result, nil
 }
+
+func (r *PostgresRepository) GetByEmail(ctx context.Context, email string) (User, error) {
+	const query = `
+		SELECT
+			id,
+			email,
+			password_hash,
+			full_name,
+			role,
+			is_active,
+			created_at,
+			updated_at
+		FROM users
+		WHERE email = $1;
+	`
+
+	result, err := scanUser(r.pool.QueryRow(ctx, query, email))
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return User{}, ErrNotFound
+		}
+
+		return User{}, fmt.Errorf("get user by email: %w", err)
+	}
+
+	return result, nil
+}
