@@ -6,6 +6,12 @@ type CreateRequest struct {
 	Email    string `json:"email"`
 	Password string `json:"password"`
 	FullName string `json:"full_name"`
+}
+
+type CreateByAdminRequest struct {
+	Email    string `json:"email"`
+	Password string `json:"password"`
+	FullName string `json:"full_name"`
 	Role     Role   `json:"role"`
 }
 
