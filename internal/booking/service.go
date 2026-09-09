@@ -8,22 +8,26 @@ import (
 
 	"github.com/Lockok/roomly/internal/platform/clock"
 	"github.com/Lockok/roomly/internal/room"
+	"github.com/Lockok/roomly/internal/user"
 )
 
 type Service struct {
 	repository Repository
 	rooms      RoomReader
+	users	   UserReader
 	clock      clock.Clock
 }
 
 func NewService(
 	repository Repository,
 	rooms RoomReader,
+	users UserReader,
 	clk clock.Clock,
 ) *Service {
 	return &Service{
 		repository: repository,
 		rooms:      rooms,
+		users:      users,
 		clock:      clk,
 	}
 }
@@ -44,6 +48,19 @@ func (s *Service) Create(ctx context.Context, input CreateInput) (Booking, error
 
 	if !targetRoom.IsActive {
 		return Booking{}, ErrRoomInactive
+	}
+
+	organizer, err := s.users.GetByID(ctx, input.OrganizerID)
+	if err != nil {
+	if errors.Is(err, user.ErrNotFound) {
+		return Booking{}, ErrOrganizerNotFound
+	}
+
+	return Booking{}, err
+}
+
+	if !organizer.IsActive {
+	return Booking{}, ErrOrganizerInactive
 	}
 
 	if input.AttendeesCount > targetRoom.Capacity {

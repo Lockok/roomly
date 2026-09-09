@@ -8,6 +8,7 @@ import (
 
 	"github.com/Lockok/roomly/internal/platform/optional"
 	"github.com/Lockok/roomly/internal/room"
+	"github.com/Lockok/roomly/internal/user"
 	"github.com/google/uuid"
 )
 
@@ -67,6 +68,29 @@ func (f fakeRoomReader) GetByID(ctx context.Context, id uuid.UUID) (room.Room, e
 	return f.getByID(ctx, id)
 }
 
+type fakeUserReader struct {
+	getByID func(ctx context.Context, id uuid.UUID) (user.User, error)
+}
+
+func (f fakeUserReader) GetByID(ctx context.Context, id uuid.UUID) (user.User, error) {
+	if f.getByID == nil {
+		return user.User{}, user.ErrNotFound
+	}
+
+	return f.getByID(ctx, id)
+}
+
+func activeUserReader() fakeUserReader {
+	return fakeUserReader{
+		getByID: func(_ context.Context, _ uuid.UUID) (user.User, error) {
+			return user.User{
+				ID:       uuid.New(),
+				IsActive: true,
+			}, nil
+		},
+	}
+}
+
 type fixedClock struct {
 	now time.Time
 }
@@ -104,6 +128,8 @@ func TestServiceCreate(t *testing.T) {
 		input     CreateInput
 		room      room.Room
 		roomErr   error
+		user      user.User
+		userErr   error
 		wantErrIs error
 	}{
 		{
@@ -143,6 +169,23 @@ func TestServiceCreate(t *testing.T) {
 			}(),
 			room: activeRoom(10),
 		},
+		{
+			name:      "organizer not found",
+			input:     validInput(now),
+			room:      activeRoom(10),
+			userErr:   user.ErrNotFound,
+			wantErrIs: ErrOrganizerNotFound,
+		},
+		{
+			name:  "inactive organizer",
+			input: validInput(now),
+			room:  activeRoom(10),
+			user: user.User{
+				ID:       uuid.New(),
+				IsActive: false,
+			},
+			wantErrIs: ErrOrganizerInactive,
+		},
 	}
 
 	for _, tt := range tests {
@@ -168,7 +211,24 @@ func TestServiceCreate(t *testing.T) {
 				},
 			}
 
-			service := NewService(repository, rooms, fixedClock{now: now})
+			users := fakeUserReader{
+				getByID: func(_ context.Context, _ uuid.UUID) (user.User, error) {
+					if tt.userErr != nil {
+						return user.User{}, tt.userErr
+					}
+
+					if tt.user.ID != uuid.Nil {
+						return tt.user, nil
+					}
+
+					return user.User{
+						ID:       uuid.New(),
+						IsActive: true,
+					}, nil
+				},
+			}
+
+			service := NewService(repository, rooms, users, fixedClock{now: now})
 
 			_, err := service.Create(context.Background(), tt.input)
 
@@ -297,7 +357,7 @@ func TestServiceUpdate(t *testing.T) {
 				},
 			}
 
-			service := NewService(repository, rooms, fixedClock{now: now})
+			service := NewService(repository, rooms, activeUserReader(), fixedClock{now: now})
 
 			_, err := service.Update(context.Background(), tt.input)
 
@@ -339,7 +399,7 @@ func TestServiceCancel(t *testing.T) {
 			},
 		}
 
-		service := NewService(repository, fakeRoomReader{}, fixedClock{now: now})
+		service := NewService(repository, fakeRoomReader{}, activeUserReader(), fixedClock{now: now})
 
 		result, err := service.Cancel(context.Background(), CancelInput{ID: current.ID, CancelledBy: uuid.New()})
 		if err != nil {
@@ -361,7 +421,7 @@ func TestServiceCancel(t *testing.T) {
 			},
 		}
 
-		service := NewService(repository, fakeRoomReader{}, fixedClock{now: now})
+		service := NewService(repository, fakeRoomReader{}, activeUserReader(), fixedClock{now: now})
 
 		_, err := service.Cancel(context.Background(), CancelInput{ID: current.ID, CancelledBy: uuid.New()})
 		if !errors.Is(err, ErrAlreadyCancelled) {
@@ -376,7 +436,7 @@ func TestServiceCancel(t *testing.T) {
 			},
 		}
 
-		service := NewService(repository, fakeRoomReader{}, fixedClock{now: now})
+		service := NewService(repository, fakeRoomReader{}, activeUserReader(), fixedClock{now: now})
 
 		_, err := service.Cancel(context.Background(), CancelInput{ID: uuid.New(), CancelledBy: uuid.New()})
 		if !errors.Is(err, ErrNotFound) {
@@ -398,7 +458,7 @@ func TestServiceCancel(t *testing.T) {
 			},
 		}
 
-		service := NewService(repository, fakeRoomReader{}, fixedClock{now: now})
+		service := NewService(repository, fakeRoomReader{}, activeUserReader(), fixedClock{now: now})
 
 		_, err := service.Cancel(
 			context.Background(),

@@ -190,6 +190,10 @@ func writeBookingError(w http.ResponseWriter, err error) {
 	switch {
 	case errors.Is(err, ErrRoomNotFound):
 		httputil.WriteError(w, http.StatusNotFound, "ROOM_NOT_FOUND", "room not found")
+	case errors.Is(err, ErrOrganizerNotFound):
+		httputil.WriteError(w, http.StatusNotFound, "ORGANIZER_NOT_FOUND", "organizer not found")
+	case errors.Is(err, ErrOrganizerInactive):
+		httputil.WriteError(w, http.StatusConflict, "ORGANIZER_INACTIVE", "organizer is not active")
 	case errors.Is(err, ErrNotFound):
 		httputil.WriteError(w, http.StatusNotFound, "BOOKING_NOT_FOUND", "booking not found")
 	case errors.Is(err, ErrRoomInactive):
