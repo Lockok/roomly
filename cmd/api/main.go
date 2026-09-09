@@ -71,6 +71,7 @@ func main() {
 	mux.Handle("PATCH /api/v1/rooms/{id}", requireAuth(requireAdmin(http.HandlerFunc(roomHandler.Update))))
 
 	mux.HandleFunc("POST /api/v1/users", userHandler.Create)
+	mux.Handle("POST /api/v1/admin/users", requireAuth(requireAdmin(http.HandlerFunc(userHandler.CreateByAdmin))))
 	mux.HandleFunc("GET /api/v1/users", userHandler.List)
 
 	mux.Handle("POST /api/v1/bookings", requireAuth(http.HandlerFunc(bookingHandler.Create)))

@@ -33,6 +33,58 @@ func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 		Email:    request.Email,
 		Password: request.Password,
 		FullName: request.FullName,
+	})
+	if err != nil {
+		switch {
+		case errors.Is(err, ErrAlreadyExists):
+			httputil.WriteError(
+				w,
+				http.StatusConflict,
+				"USER_ALREADY_EXISTS",
+				"user with this email already exists",
+			)
+		default:
+			var validationErr ValidationError
+			if errors.As(err, &validationErr) {
+				httputil.WriteError(
+					w,
+					http.StatusBadRequest,
+					"VALIDATION_ERROR",
+					validationErr.Message,
+				)
+				return
+			}
+
+			httputil.WriteError(
+				w,
+				http.StatusInternalServerError,
+				"INTERNAL_ERROR",
+				"internal server error",
+			)
+		}
+		return
+	}
+
+	httputil.WriteJSON(w, http.StatusCreated, NewUserResponse(created))
+}
+
+func (h *Handler) CreateByAdmin(w http.ResponseWriter, r *http.Request) {
+	var request CreateByAdminRequest
+
+	if err := httputil.DecodeJSON(w, r, &request); err != nil {
+		httputil.WriteError(
+			w,
+			http.StatusBadRequest,
+			"INVALID_JSON",
+			"request body must contain valid JSON",
+		)
+		return
+	}
+
+	created, err := h.useCase.Create(r.Context(), CreateInput{
+		Email:    request.Email,
+		Password: request.Password,
+		FullName: request.FullName,
 		Role:     request.Role,
 	})
 	if err != nil {
