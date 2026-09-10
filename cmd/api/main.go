@@ -16,6 +16,7 @@ import (
 	"github.com/Lockok/roomly/internal/platform/db"
 	"github.com/Lockok/roomly/internal/platform/health"
 	"github.com/Lockok/roomly/internal/platform/middleware"
+	"github.com/Lockok/roomly/internal/report"
 	"github.com/Lockok/roomly/internal/room"
 	"github.com/Lockok/roomly/internal/user"
 )
@@ -44,6 +45,10 @@ func main() {
 	roomService := room.NewService(roomRepository)
 	roomHandler := room.NewHandler(roomService)
 
+	reportRepository := report.NewPostgresRepository(pool)
+	reportService := report.NewService(reportRepository)
+	reportHandler := report.NewHandler(reportService)
+
 	userRepository := user.NewPostgresRepository(pool)
 	userService := user.NewService(userRepository)
 	userHandler := user.NewHandler(userService)
@@ -70,6 +75,7 @@ func main() {
 	mux.Handle("GET /api/v1/rooms/{id}/calendar", requireAuth(http.HandlerFunc(bookingHandler.RoomCalendar)))
 	mux.HandleFunc("GET /api/v1/rooms/{id}", roomHandler.GetByID)
 	mux.Handle("PATCH /api/v1/rooms/{id}", requireAuth(requireAdmin(http.HandlerFunc(roomHandler.Update))))
+	mux.Handle("GET /api/v1/reports/room-usage", requireAuth(requireAdmin(http.HandlerFunc(reportHandler.RoomUsage))))
 
 	mux.HandleFunc("POST /api/v1/users", userHandler.Create)
 	mux.Handle("POST /api/v1/admin/users", requireAuth(requireAdmin(http.HandlerFunc(userHandler.CreateByAdmin))))
