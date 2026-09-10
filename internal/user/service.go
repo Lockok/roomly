@@ -45,3 +45,7 @@ func (s *Service) List(ctx context.Context, filter ListFilter) ([]User, error) {
 func (s *Service) GetByID(ctx context.Context, id uuid.UUID) (User, error) {
 	return s.repository.GetByID(ctx, id)
 }
+
+func (s *Service) UpdateStatus(ctx context.Context, input UpdateStatusInput) (User, error) {
+	return s.repository.UpdateStatus(ctx, input)
+}

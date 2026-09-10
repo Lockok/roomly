@@ -168,3 +168,39 @@ func (r *PostgresRepository) GetByEmail(ctx context.Context, email string) (User
 
 	return result, nil
 }
+
+func (r *PostgresRepository) UpdateStatus(
+	ctx context.Context,
+	input UpdateStatusInput,
+) (User, error) {
+	const query = `
+		UPDATE users
+		SET is_active = $2
+		WHERE id = $1
+		RETURNING
+			id,
+			email,
+			password_hash,
+			full_name,
+			role,
+			is_active,
+			created_at,
+			updated_at;
+	`
+
+	result, err := scanUser(r.pool.QueryRow(
+		ctx,
+		query,
+		input.ID,
+		input.IsActive,
+	))
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return User{}, ErrNotFound
+		}
+
+		return User{}, fmt.Errorf("update user status: %w", err)
+	}
+
+	return result, nil
+}

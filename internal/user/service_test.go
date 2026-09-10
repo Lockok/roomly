@@ -10,8 +10,9 @@ import (
 )
 
 type fakeRepository struct {
-	create     func(ctx context.Context, input CreateInput) (User, error)
-	getByEmail func(ctx context.Context, email string) (User, error)
+	create       func(ctx context.Context, input CreateInput) (User, error)
+	getByEmail   func(ctx context.Context, email string) (User, error)
+	updateStatus func(ctx context.Context, input UpdateStatusInput) (User, error)
 }
 
 func (f fakeRepository) Create(ctx context.Context, input CreateInput) (User, error) {
@@ -36,6 +37,17 @@ func (f fakeRepository) GetByEmail(ctx context.Context, email string) (User, err
 	}
 
 	return f.getByEmail(ctx, email)
+}
+
+func (f fakeRepository) UpdateStatus(
+	ctx context.Context,
+	input UpdateStatusInput,
+) (User, error) {
+	if f.updateStatus == nil {
+		return User{}, ErrNotFound
+	}
+
+	return f.updateStatus(ctx, input)
 }
 
 func TestServiceCreateNormalizesInput(t *testing.T) {
@@ -90,5 +102,40 @@ func TestServiceCreateRejectsInvalidInput(t *testing.T) {
 	var validationErr ValidationError
 	if !errors.As(err, &validationErr) {
 		t.Fatalf("expected ValidationError, got %v", err)
+	}
+}
+
+func TestServiceUpdateStatus(t *testing.T) {
+	userID := uuid.New()
+
+	repository := fakeRepository{
+		updateStatus: func(_ context.Context, input UpdateStatusInput) (User, error) {
+			if input.ID != userID {
+				t.Fatalf("expected user ID %s, got %s", userID, input.ID)
+			}
+
+			if input.IsActive {
+				t.Fatal("expected user to be deactivated")
+			}
+
+			return User{
+				ID:       userID,
+				IsActive: false,
+			}, nil
+		},
+	}
+
+	service := NewService(repository)
+
+	result, err := service.UpdateStatus(context.Background(), UpdateStatusInput{
+		ID:       userID,
+		IsActive: false,
+	})
+	if err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+
+	if result.IsActive {
+		t.Fatal("expected inactive user")
 	}
 }

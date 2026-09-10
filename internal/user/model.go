@@ -35,3 +35,8 @@ type CreateInput struct {
 type ListFilter struct {
 	IsActive *bool
 }
+
+type UpdateStatusInput struct {
+	ID       uuid.UUID
+	IsActive bool
+}

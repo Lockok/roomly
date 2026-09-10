@@ -6,6 +6,7 @@ import (
 	"strconv"
 
 	"github.com/Lockok/roomly/internal/platform/httputil"
+	"github.com/google/uuid"
 )
 
 type Handler struct {
@@ -156,4 +157,55 @@ func (h *Handler) List(w http.ResponseWriter, r *http.Request) {
 	}
 
 	httputil.WriteJSON(w, http.StatusOK, response)
+}
+
+func (h *Handler) UpdateStatus(w http.ResponseWriter, r *http.Request) {
+	id, err := uuid.Parse(r.PathValue("id"))
+	if err != nil {
+		httputil.WriteError(
+			w,
+			http.StatusBadRequest,
+			"INVALID_USER_ID",
+			"user ID must be a valid UUID",
+		)
+		return
+	}
+
+	var request UpdateStatusRequest
+
+	if err := httputil.DecodeJSON(w, r, &request); err != nil {
+		httputil.WriteError(
+			w,
+			http.StatusBadRequest,
+			"INVALID_JSON",
+			"request body must contain valid JSON",
+		)
+		return
+	}
+
+	updated, err := h.useCase.UpdateStatus(r.Context(), UpdateStatusInput{
+		ID:       id,
+		IsActive: request.IsActive,
+	})
+	if err != nil {
+		if errors.Is(err, ErrNotFound) {
+			httputil.WriteError(
+				w,
+				http.StatusNotFound,
+				"USER_NOT_FOUND",
+				"user not found",
+			)
+			return
+		}
+
+		httputil.WriteError(
+			w,
+			http.StatusInternalServerError,
+			"INTERNAL_ERROR",
+			"internal server error",
+		)
+		return
+	}
+
+	httputil.WriteJSON(w, http.StatusOK, NewUserResponse(updated))
 }
