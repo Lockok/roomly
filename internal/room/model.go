@@ -45,6 +45,9 @@ type ListFilter struct {
 }
 
 type AvailabilityInput struct {
-	StartsAt time.Time
-	EndsAt   time.Time
+	StartsAt    time.Time
+	EndsAt      time.Time
+	MinCapacity *int
+	Location    *string
+	Equipment   []string
 }
