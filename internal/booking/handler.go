@@ -113,6 +113,58 @@ func (h *Handler) List(w http.ResponseWriter, r *http.Request) {
 	httputil.WriteJSON(w, http.StatusOK, NewListResponse(bookings))
 }
 
+func (h *Handler) RoomCalendar(w http.ResponseWriter, r *http.Request) {
+	roomID, err := uuid.Parse(r.PathValue("id"))
+	if err != nil {
+		httputil.WriteError(
+			w,
+			http.StatusBadRequest,
+			"INVALID_ROOM_ID",
+			"room ID must be a valid UUID",
+		)
+		return
+	}
+
+	query := r.URL.Query()
+
+	from, err := time.Parse(time.RFC3339, query.Get("from"))
+	if err != nil {
+		httputil.WriteError(
+			w,
+			http.StatusBadRequest,
+			"INVALID_FROM",
+			"from must be a valid RFC3339 timestamp",
+		)
+		return
+	}
+
+	to, err := time.Parse(time.RFC3339, query.Get("to"))
+	if err != nil {
+		httputil.WriteError(
+			w,
+			http.StatusBadRequest,
+			"INVALID_TO",
+			"to must be a valid RFC3339 timestamp",
+		)
+		return
+	}
+
+	status := StatusConfirmed
+
+	bookings, err := h.useCase.List(r.Context(), ListFilter{
+		RoomID: &roomID,
+		Status: &status,
+		From:   &from,
+		To:     &to,
+	})
+	if err != nil {
+		writeBookingError(w, err)
+		return
+	}
+
+	httputil.WriteJSON(w, http.StatusOK, NewListResponse(bookings))
+}
+
 func (h *Handler) GetByID(w http.ResponseWriter, r *http.Request) {
 	id, err := uuid.Parse(r.PathValue("id"))
 	if err != nil {
