@@ -205,6 +205,44 @@ func TestAvailabilityInputValidate(t *testing.T) {
 			},
 			wantErr: true,
 		},
+		{
+			name: "zero min capacity",
+			input: AvailabilityInput{
+				StartsAt:    startsAt,
+				EndsAt:      endsAt,
+				MinCapacity: intPointer(0),
+			},
+			wantErr: true,
+		},
+		{
+			name: "empty location",
+			input: AvailabilityInput{
+				StartsAt: startsAt,
+				EndsAt:   endsAt,
+				Location: stringPointer(" "),
+			},
+			wantErr: true,
+		},
+		{
+			name: "empty equipment item",
+			input: AvailabilityInput{
+				StartsAt:  startsAt,
+				EndsAt:    endsAt,
+				Equipment: []string{"tv", " "},
+			},
+			wantErr: true,
+		},
+		{
+			name: "valid search filters",
+			input: AvailabilityInput{
+				StartsAt:    startsAt,
+				EndsAt:      endsAt,
+				MinCapacity: intPointer(8),
+				Location:    stringPointer("HQ"),
+				Equipment:   []string{"tv", "whiteboard"},
+			},
+			wantErr: false,
+		},
 	}
 
 	for _, tt := range tests {

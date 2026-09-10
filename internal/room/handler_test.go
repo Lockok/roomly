@@ -506,3 +506,55 @@ func TestHandlerCreateRejectsMultipleJSONValues(t *testing.T) {
 		t.Fatalf("unexpected response body: %q", response.Body.String())
 	}
 }
+func TestHandlerListAvailableWithFilters(t *testing.T) {
+	startsAt := "2026-09-10T10:00:00Z"
+	endsAt := "2026-09-10T11:00:00Z"
+
+	useCase := fakeUseCase{
+		listAvailable: func(_ context.Context, input AvailabilityInput) ([]Room, error) {
+			if input.StartsAt.Format(time.RFC3339) != startsAt {
+				t.Fatalf("unexpected starts_at: %s", input.StartsAt.Format(time.RFC3339))
+			}
+
+			if input.EndsAt.Format(time.RFC3339) != endsAt {
+				t.Fatalf("unexpected ends_at: %s", input.EndsAt.Format(time.RFC3339))
+			}
+
+			if input.MinCapacity == nil || *input.MinCapacity != 8 {
+				t.Fatal("expected min_capacity=8")
+			}
+
+			if input.Location == nil || *input.Location != "HQ" {
+				t.Fatal("expected location=HQ")
+			}
+
+			if len(input.Equipment) != 2 ||
+				input.Equipment[0] != "tv" ||
+				input.Equipment[1] != "whiteboard" {
+				t.Fatalf("unexpected equipment: %#v", input.Equipment)
+			}
+
+			return []Room{}, nil
+		},
+	}
+
+	handler := NewHandler(useCase)
+
+	request := httptest.NewRequest(
+		http.MethodGet,
+		"/api/v1/rooms/available?starts_at="+startsAt+
+			"&ends_at="+endsAt+
+			"&min_capacity=8"+
+			"&location=HQ"+
+			"&equipment=tv"+
+			"&equipment=whiteboard",
+		nil,
+	)
+	response := httptest.NewRecorder()
+
+	handler.ListAvailable(response, request)
+
+	if response.Code != http.StatusOK {
+		t.Fatalf("expected status %d, got %d", http.StatusOK, response.Code)
+	}
+}
