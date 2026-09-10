@@ -140,31 +140,37 @@ func (r *PostgresRepository) List(ctx context.Context, filter ListFilter) ([]Roo
 
 func (r *PostgresRepository) ListAvailable(ctx context.Context, input AvailabilityInput) ([]Room, error) {
 	const query = `
-		SELECT
-			r.id,
-			r.name,
-			r.location,
-			r.floor,
-			r.capacity,
-			r.equipment,
-			r.description,
-			r.is_active,
-			r.created_at,
-			r.updated_at
-		FROM rooms AS r
-		WHERE r.is_active = TRUE
-		  AND NOT EXISTS (
-			  SELECT 1
-			  FROM bookings AS b
-			  WHERE b.room_id = r.id
-			    AND b.status = 'confirmed'
-			    AND tstzrange(b.starts_at, b.ends_at, '[)')
-			        && tstzrange($1, $2, '[)')
-		  )
-		ORDER BY r.location ASC, r.name ASC;
+	SELECT
+		r.id,
+		r.name,
+		r.location,
+		r.floor,
+		r.capacity,
+		r.equipment,
+		r.description,
+		r.is_active,
+		r.created_at,
+		r.updated_at
+	FROM rooms AS r
+	WHERE r.is_active = TRUE
+	  AND ($3::integer IS NULL OR r.capacity >= $3)
+	  AND ($4::text IS NULL OR r.location = $4)
+	  AND (
+		COALESCE(array_length($5::text[], 1), 0) = 0
+		OR r.equipment @> to_jsonb($5::text[])
+	  )
+	  AND NOT EXISTS (
+		  SELECT 1
+		  FROM bookings AS b
+		  WHERE b.room_id = r.id
+		    AND b.status = 'confirmed'
+		    AND tstzrange(b.starts_at, b.ends_at, '[)')
+		        && tstzrange($1, $2, '[)')
+	  )
+	ORDER BY r.location ASC, r.name ASC;
 	`
 
-	rows, err := r.pool.Query(ctx, query, input.StartsAt, input.EndsAt)
+	rows, err := r.pool.Query(ctx, query, input.StartsAt, input.EndsAt, input.MinCapacity, input.Location, input.Equipment)
 	if err != nil {
 		return nil, fmt.Errorf("list available error: %w", err)
 	}

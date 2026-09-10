@@ -83,5 +83,19 @@ func (input AvailabilityInput) Validate() error {
 		return ValidationError{Message: "ends_at must be after starts_at"}
 	}
 
+	if input.MinCapacity != nil && *input.MinCapacity <= 0 {
+		return ValidationError{Message: "min_capacity must be greater than zero"}
+	}
+
+	if input.Location != nil && strings.TrimSpace(*input.Location) == "" {
+		return ValidationError{Message: "location must not be empty"}
+	}
+
+	for _, item := range input.Equipment {
+		if strings.TrimSpace(item) == "" {
+			return ValidationError{Message: "equipment items must not be empty"}
+		}
+	}
+
 	return nil
 }

@@ -116,7 +116,9 @@ func (h *Handler) List(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) ListAvailable(w http.ResponseWriter, r *http.Request) {
-	startsAt, err := time.Parse(time.RFC3339, r.URL.Query().Get("starts_at"))
+	query := r.URL.Query()
+
+	startsAt, err := time.Parse(time.RFC3339, query.Get("starts_at"))
 	if err != nil {
 		httputil.WriteError(
 			w,
@@ -127,7 +129,7 @@ func (h *Handler) ListAvailable(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	endsAt, err := time.Parse(time.RFC3339, r.URL.Query().Get("ends_at"))
+	endsAt, err := time.Parse(time.RFC3339, query.Get("ends_at"))
 	if err != nil {
 		httputil.WriteError(
 			w,
@@ -138,10 +140,26 @@ func (h *Handler) ListAvailable(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	rooms, err := h.useCase.ListAvailable(r.Context(), AvailabilityInput{
-		StartsAt: startsAt,
-		EndsAt:   endsAt,
-	})
+	input := AvailabilityInput{
+		StartsAt:  startsAt,
+		EndsAt:    endsAt,
+		Equipment: query["equipment"],
+	}
+
+	if value := query.Get("min_capacity"); value != "" {
+		minCapacity, err := strconv.Atoi(value)
+		if err != nil {
+			httputil.WriteError(w, http.StatusBadRequest, "INVALID_MIN_CAPACITY", "min_capacity must be an integer")
+			return
+		}
+		input.MinCapacity = &minCapacity
+	}
+
+	if value := query.Get("location"); value != "" {
+		input.Location = &value
+	}
+
+	rooms, err := h.useCase.ListAvailable(r.Context(), input)
 	if err != nil {
 		var validationErr ValidationError
 		if errors.As(err, &validationErr) {
