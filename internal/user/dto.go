@@ -15,6 +15,10 @@ type CreateByAdminRequest struct {
 	Role     Role   `json:"role"`
 }
 
+type UpdateStatusRequest struct {
+	IsActive bool `json:"is_active"`
+}
+
 type UserResponse struct {
 	ID        string `json:"id"`
 	Email     string `json:"email"`
