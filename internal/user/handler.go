@@ -2,6 +2,7 @@ package user
 
 import (
 	"errors"
+	"log/slog"
 	"net/http"
 	"strconv"
 
@@ -56,6 +57,8 @@ func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 				return
 			}
 
+			slog.Error("create user failed", "error", err)
+
 			httputil.WriteError(
 				w,
 				http.StatusInternalServerError,
@@ -109,6 +112,8 @@ func (h *Handler) CreateByAdmin(w http.ResponseWriter, r *http.Request) {
 				return
 			}
 
+			slog.Error("createByAdmin failed", "error", err)
+
 			httputil.WriteError(
 				w,
 				http.StatusInternalServerError,
@@ -142,6 +147,8 @@ func (h *Handler) List(w http.ResponseWriter, r *http.Request) {
 
 	users, err := h.useCase.List(r.Context(), filter)
 	if err != nil {
+		slog.Error("list user failed", "error", err)
+
 		httputil.WriteError(
 			w,
 			http.StatusInternalServerError,
@@ -197,6 +204,8 @@ func (h *Handler) UpdateStatus(w http.ResponseWriter, r *http.Request) {
 			)
 			return
 		}
+
+		slog.Error("update status failed", "error", err)
 
 		httputil.WriteError(
 			w,
