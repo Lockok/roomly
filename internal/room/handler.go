@@ -2,11 +2,13 @@ package room
 
 import (
 	"errors"
+	"log/slog"
 	"net/http"
 	"strconv"
 	"time"
 
 	"github.com/Lockok/roomly/internal/platform/httputil"
+	"github.com/Lockok/roomly/internal/platform/middleware"
 	"github.com/google/uuid"
 )
 
@@ -65,6 +67,12 @@ func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
+		slog.Error(
+			"create room failed",
+			"request_id", middleware.GetRequestID(r.Context()),
+			"error", err,
+		)
+
 		httputil.WriteError(
 			w,
 			http.StatusInternalServerError,
@@ -98,6 +106,12 @@ func (h *Handler) List(w http.ResponseWriter, r *http.Request) {
 	rooms, err := h.useCase.List(r.Context(), filter)
 
 	if err != nil {
+		slog.Error(
+			"list rooms failed",
+			"request_id", middleware.GetRequestID(r.Context()),
+			"error", err,
+		)
+
 		httputil.WriteError(
 			w,
 			http.StatusInternalServerError,
@@ -172,6 +186,12 @@ func (h *Handler) ListAvailable(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
+		slog.Error(
+			"list avialable rooms failed",
+			"request_id", middleware.GetRequestID(r.Context()),
+			"error", err,
+		)
+
 		httputil.WriteError(
 			w,
 			http.StatusInternalServerError,
@@ -212,6 +232,12 @@ func (h *Handler) GetByID(w http.ResponseWriter, r *http.Request) {
 			)
 			return
 		}
+
+		slog.Error(
+			"get room failed",
+			"request_id", middleware.GetRequestID(r.Context()),
+			"error", err,
+		)
 
 		httputil.WriteError(
 			w,
@@ -292,6 +318,12 @@ func (h *Handler) Update(w http.ResponseWriter, r *http.Request) {
 			)
 			return
 		}
+
+		slog.Error(
+			"update room failed",
+			"request_id", middleware.GetRequestID(r.Context()),
+			"error", err,
+		)
 
 		httputil.WriteError(
 			w,

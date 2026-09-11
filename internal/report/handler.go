@@ -2,10 +2,12 @@ package report
 
 import (
 	"errors"
+	"log/slog"
 	"net/http"
 	"time"
 
 	"github.com/Lockok/roomly/internal/platform/httputil"
+	"github.com/Lockok/roomly/internal/platform/middleware"
 )
 
 type RoomUsageResponse struct {
@@ -69,6 +71,12 @@ func (h *Handler) RoomUsage(w http.ResponseWriter, r *http.Request) {
 			)
 			return
 		}
+
+		slog.Error(
+			"RoomUsage failed",
+			"request_id", middleware.GetRequestID(r.Context()),
+			"error", err,
+		)
 
 		httputil.WriteError(
 			w,

@@ -2,7 +2,7 @@ package main
 
 import (
 	"context"
-	"log"
+	"log/slog"
 	"net/http"
 	"os"
 	"os/signal"
@@ -15,6 +15,7 @@ import (
 	"github.com/Lockok/roomly/internal/platform/config"
 	"github.com/Lockok/roomly/internal/platform/db"
 	"github.com/Lockok/roomly/internal/platform/health"
+	"github.com/Lockok/roomly/internal/platform/logger"
 	"github.com/Lockok/roomly/internal/platform/middleware"
 	"github.com/Lockok/roomly/internal/report"
 	"github.com/Lockok/roomly/internal/room"
@@ -24,8 +25,12 @@ import (
 func main() {
 	cfg, err := config.Load()
 	if err != nil {
-		log.Fatal(err)
+		slog.Error("load configuration", "error", err)
+		os.Exit(1)
 	}
+
+	logger := logger.New(cfg.AppEnv)
+	slog.SetDefault(logger)
 
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
@@ -35,7 +40,8 @@ func main() {
 
 	pool, err := db.NewPool(dbCtx, cfg.DatabaseURL)
 	if err != nil {
-		log.Fatal(err)
+		slog.Error("connect to database", "error", err)
+		os.Exit(1)
 	}
 	defer pool.Close()
 
@@ -89,7 +95,9 @@ func main() {
 	mux.Handle("POST /api/v1/bookings/{id}/cancel", requireAuth(http.HandlerFunc(bookingHandler.Cancel)))
 
 	handler := middleware.RequestID(
-		middleware.Recovery(mux),
+		middleware.AccessLog(
+			middleware.Recovery(mux),
+		),
 	)
 
 	server := &http.Server{
@@ -99,10 +107,10 @@ func main() {
 	}
 
 	go func() {
-		log.Printf("API started on http://localhost:%s", cfg.HTTPPort)
+		slog.Info("API started", "address", server.Addr)
 
 		if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-			log.Fatal(err)
+			slog.Error("server failed", "error", err)
 		}
 	}()
 
@@ -112,6 +120,6 @@ func main() {
 	defer shutdownCancel()
 
 	if err := server.Shutdown(shutdownCtx); err != nil {
-		log.Printf("graceful shutdown failed: %v", err)
+		slog.Error("graceful shutdown failed", "error", err)
 	}
 }

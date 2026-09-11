@@ -2,6 +2,7 @@ package auth
 
 import (
 	"errors"
+	"log/slog"
 	"net/http"
 
 	"github.com/Lockok/roomly/internal/platform/httputil"
@@ -56,6 +57,9 @@ func (h *Handler) Login(w http.ResponseWriter, r *http.Request) {
 				"user is inactive",
 			)
 		default:
+
+			slog.Error("login auth failed", "error", err)
+
 			httputil.WriteError(
 				w,
 				http.StatusInternalServerError,
