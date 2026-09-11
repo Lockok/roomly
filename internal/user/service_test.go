@@ -139,3 +139,17 @@ func TestServiceUpdateStatus(t *testing.T) {
 		t.Fatal("expected inactive user")
 	}
 }
+
+func TestCreateInputValidateRejectsShortPassword(t *testing.T) {
+	err := CreateInput{
+		Email:    "user@example.com",
+		FullName: "User Name",
+		Password: "short",
+		Role:     RoleEmployee,
+	}.Validate()
+
+	var validationErr ValidationError
+	if !errors.As(err, &validationErr) {
+		t.Fatalf("expected ValidationError, got %v", err)
+	}
+}
