@@ -29,7 +29,7 @@ func (input CreateInput) Validate() error {
 		return ValidationError{Message: "full_name is required"}
 	}
 
-	if len(input.Password) < 0 {
+	if len(input.Password) < 8 {
 		return ValidationError{Message: "password must contain at least 8 characters"}
 	}
 
