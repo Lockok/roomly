@@ -47,7 +47,7 @@ services:
   api:
     build:
       context: .
-      dockerfile: Dockerfile
+      dockerfile: dockerfile
     container_name: roomly-api
     restart: unless-stopped
     env_file:
@@ -61,6 +61,21 @@ services:
         condition: service_healthy
       migrate:
         condition: service_completed_successfully
+
+  integration-tests:
+    image: golang:1.26-alpine
+    profiles: ["integration"]
+    working_dir: /app
+    volumes:
+      - .:/app
+    environment:
+      TEST_DATABASE_URL: postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}?sslmode=disable
+    depends_on:
+      postgres:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    command: go test ./internal/booking -run TestPostgresRepository -count=1
 
 volumes:
   roomly_postgres_data:
