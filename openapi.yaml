@@ -1,0 +1,475 @@
+openapi: 3.0.3
+info:
+  title: Roomly API
+  version: 1.0.0
+  description: REST API for meeting-room booking and resource usage.
+servers:
+  - url: http://localhost:8080
+
+tags:
+  - name: Health
+  - name: Auth
+  - name: Users
+  - name: Rooms
+  - name: Bookings
+  - name: Reports
+
+paths:
+  /health/live:
+    get:
+      tags: [Health]
+      security: []
+      responses:
+        '200': { description: Application is running }
+  /health/ready:
+    get:
+      tags: [Health]
+      security: []
+      responses:
+        '200': { description: Application and database are ready }
+        '503': { $ref: '#/components/responses/ServiceUnavailable' }
+  /api/v1/auth/login:
+    post:
+      tags: [Auth]
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/LoginRequest' }
+      responses:
+        '200':
+          description: Access token issued
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/LoginResponse' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+  /api/v1/users:
+    post:
+      tags: [Users]
+      security: []
+      summary: Register an employee
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CreateUserRequest' }
+      responses:
+        '201':
+          description: User created
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/User' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '409': { description: Email is already registered }
+    get:
+      tags: [Users]
+      summary: List users (admin only)
+      parameters:
+        - $ref: '#/components/parameters/Active'
+      responses:
+        '200':
+          description: Users
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/User' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+  /api/v1/admin/users:
+    post:
+      tags: [Users]
+      summary: Create a user with an explicit role
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CreateAdminUserRequest' }
+      responses:
+        '201':
+          description: User created
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/User' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+  /api/v1/admin/users/{id}/status:
+    patch:
+      tags: [Users]
+      summary: Activate or deactivate a user
+      parameters:
+        - $ref: '#/components/parameters/ID'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [is_active]
+              properties:
+                is_active: { type: boolean }
+      responses:
+        '200':
+          description: Updated user
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/User' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /api/v1/rooms:
+    get:
+      tags: [Rooms]
+      security: []
+      parameters:
+        - $ref: '#/components/parameters/Active'
+      responses:
+        '200':
+          description: Rooms
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/Room' }
+    post:
+      tags: [Rooms]
+      summary: Create a room (admin only)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CreateRoomRequest' }
+      responses:
+        '201':
+          description: Room created
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Room' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+  /api/v1/rooms/available:
+    get:
+      tags: [Rooms]
+      security: []
+      parameters:
+        - name: starts_at
+          in: query
+          required: true
+          schema: { type: string, format: date-time }
+        - name: ends_at
+          in: query
+          required: true
+          schema: { type: string, format: date-time }
+        - name: min_capacity
+          in: query
+          schema: { type: integer, minimum: 1 }
+        - name: location
+          in: query
+          schema: { type: string }
+        - name: equipment
+          in: query
+          schema: { type: array, items: { type: string } }
+          style: form
+          explode: true
+      responses:
+        '200':
+          description: Available rooms
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/Room' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+  /api/v1/rooms/{id}:
+    get:
+      tags: [Rooms]
+      security: []
+      parameters: [{ $ref: '#/components/parameters/ID' }]
+      responses:
+        '200':
+          description: Room
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Room' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    patch:
+      tags: [Rooms]
+      summary: Update a room (admin only)
+      parameters: [{ $ref: '#/components/parameters/ID' }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/UpdateRoomRequest' }
+      responses:
+        '200':
+          description: Updated room
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Room' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /api/v1/rooms/{id}/calendar:
+    get:
+      tags: [Bookings]
+      parameters:
+        - $ref: '#/components/parameters/ID'
+        - name: from
+          in: query
+          required: true
+          schema: { type: string, format: date-time }
+        - name: to
+          in: query
+          required: true
+          schema: { type: string, format: date-time }
+      responses:
+        '200':
+          description: Confirmed bookings in the room
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/Booking' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+  /api/v1/bookings:
+    get:
+      tags: [Bookings]
+      parameters:
+        - name: room_id
+          in: query
+          schema: { type: string, format: uuid }
+        - name: organizer_id
+          in: query
+          schema: { type: string, format: uuid }
+        - name: status
+          in: query
+          schema: { type: string, enum: [confirmed, cancelled] }
+        - name: from
+          in: query
+          schema: { type: string, format: date-time }
+        - name: to
+          in: query
+          schema: { type: string, format: date-time }
+      responses:
+        '200':
+          description: Bookings
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/Booking' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+    post:
+      tags: [Bookings]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CreateBookingRequest' }
+      responses:
+        '201':
+          description: Booking created
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Booking' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '409': { description: Room or capacity conflict }
+  /api/v1/bookings/{id}:
+    get:
+      tags: [Bookings]
+      parameters: [{ $ref: '#/components/parameters/ID' }]
+      responses:
+        '200':
+          description: Booking
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Booking' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    patch:
+      tags: [Bookings]
+      parameters: [{ $ref: '#/components/parameters/ID' }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/UpdateBookingRequest' }
+      responses:
+        '200':
+          description: Updated booking
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Booking' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '409': { description: Booking conflict or booking already started }
+  /api/v1/bookings/{id}/cancel:
+    post:
+      tags: [Bookings]
+      parameters: [{ $ref: '#/components/parameters/ID' }]
+      responses:
+        '200':
+          description: Cancelled booking
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Booking' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '409': { description: Booking cannot be cancelled }
+  /api/v1/reports/room-usage:
+    get:
+      tags: [Reports]
+      summary: Room utilization report (admin only)
+      parameters:
+        - name: from
+          in: query
+          required: true
+          schema: { type: string, format: date-time }
+        - name: to
+          in: query
+          required: true
+          schema: { type: string, format: date-time }
+      responses:
+        '200':
+          description: Utilization report
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  parameters:
+    ID:
+      name: id
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+    Active:
+      name: active
+      in: query
+      schema: { type: boolean }
+  responses:
+    BadRequest:
+      description: Invalid request
+    Unauthorized:
+      description: Authentication required or account inactive
+    Forbidden:
+      description: Insufficient permissions
+    NotFound:
+      description: Resource not found
+    ServiceUnavailable:
+      description: Dependency unavailable
+  schemas:
+    LoginRequest:
+      type: object
+      required: [email, password]
+      properties:
+        email: { type: string, format: email }
+        password: { type: string, format: password }
+    LoginResponse:
+      type: object
+      required: [access_token, expires_at]
+      properties:
+        access_token: { type: string }
+        expires_at: { type: string, format: date-time }
+    CreateUserRequest:
+      type: object
+      required: [email, password, full_name]
+      properties:
+        email: { type: string, format: email }
+        password: { type: string, format: password, minLength: 8 }
+        full_name: { type: string, minLength: 1 }
+    CreateAdminUserRequest:
+      allOf:
+        - $ref: '#/components/schemas/CreateUserRequest'
+        - type: object
+          required: [role]
+          properties:
+            role: { type: string, enum: [employee, admin] }
+    User:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        email: { type: string, format: email }
+        full_name: { type: string }
+        role: { type: string, enum: [employee, admin] }
+        is_active: { type: boolean }
+    CreateRoomRequest:
+      type: object
+      required: [name, location, capacity]
+      properties:
+        name: { type: string }
+        location: { type: string }
+        floor: { type: integer, nullable: true }
+        capacity: { type: integer, minimum: 1 }
+        equipment: { type: array, items: { type: string } }
+        description: { type: string, nullable: true }
+    UpdateRoomRequest:
+      type: object
+      minProperties: 1
+      properties:
+        name: { type: string }
+        location: { type: string }
+        floor: { type: integer, nullable: true }
+        capacity: { type: integer, minimum: 1 }
+        equipment: { type: array, items: { type: string } }
+        description: { type: string, nullable: true }
+        is_active: { type: boolean }
+    Room:
+      allOf:
+        - $ref: '#/components/schemas/CreateRoomRequest'
+        - type: object
+          properties:
+            id: { type: string, format: uuid }
+            is_active: { type: boolean }
+            created_at: { type: string, format: date-time }
+            updated_at: { type: string, format: date-time }
+    CreateBookingRequest:
+      type: object
+      required: [room_id, title, starts_at, ends_at, attendees_count]
+      properties:
+        room_id: { type: string, format: uuid }
+        title: { type: string }
+        description: { type: string, nullable: true }
+        starts_at: { type: string, format: date-time }
+        ends_at: { type: string, format: date-time }
+        attendees_count: { type: integer, minimum: 1 }
+    UpdateBookingRequest:
+      type: object
+      minProperties: 1
+      properties:
+        title: { type: string }
+        description: { type: string, nullable: true }
+        starts_at: { type: string, format: date-time }
+        ends_at: { type: string, format: date-time }
+        attendees_count: { type: integer, minimum: 1 }
+    Booking:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        room_id: { type: string, format: uuid }
+        organizer_id: { type: string, format: uuid }
+        title: { type: string }
+        description: { type: string, nullable: true }
+        starts_at: { type: string, format: date-time }
+        ends_at: { type: string, format: date-time }
+        status: { type: string, enum: [confirmed, cancelled] }
+        attendees_count: { type: integer }
+        cancelled_at: { type: string, format: date-time, nullable: true }
+        cancelled_by: { type: string, format: uuid, nullable: true }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+
+security:
+  - bearerAuth: []
