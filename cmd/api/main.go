@@ -9,6 +9,8 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/google/uuid"
+
 	"github.com/Lockok/roomly/internal/booking"
 	"github.com/Lockok/roomly/internal/platform/auth"
 	"github.com/Lockok/roomly/internal/platform/clock"
@@ -63,7 +65,15 @@ func main() {
 	authService := auth.NewService(userRepository, jwtService)
 	authHandler := auth.NewHandler(authService)
 
-	requireAuth := middleware.RequireAuth(jwtService)
+	activeUserCheck := func(ctx context.Context, userID uuid.UUID) (bool, error) {
+		currentUser, err := userService.GetByID(ctx, userID)
+		if err != nil {
+			return false, err
+		}
+
+		return currentUser.IsActive, nil
+	}
+	requireAuth := middleware.RequireAuth(jwtService, activeUserCheck)
 	requireAdmin := middleware.RequireRole("admin")
 
 	bookingRepository := booking.NewPostgresRepository(pool)
@@ -85,7 +95,7 @@ func main() {
 
 	mux.HandleFunc("POST /api/v1/users", userHandler.Create)
 	mux.Handle("POST /api/v1/admin/users", requireAuth(requireAdmin(http.HandlerFunc(userHandler.CreateByAdmin))))
-	mux.HandleFunc("GET /api/v1/users", userHandler.List)
+	mux.Handle("GET /api/v1/users", requireAuth(requireAdmin(http.HandlerFunc(userHandler.List))))
 	mux.Handle("PATCH /api/v1/admin/users/{id}/status", requireAuth(requireAdmin(http.HandlerFunc(userHandler.UpdateStatus))))
 
 	mux.Handle("POST /api/v1/bookings", requireAuth(http.HandlerFunc(bookingHandler.Create)))

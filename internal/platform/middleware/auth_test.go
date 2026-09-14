@@ -1,6 +1,8 @@
 package middleware
 
 import (
+	"context"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -76,5 +78,55 @@ func TestRequireAuthRejectsMissingToken(t *testing.T) {
 
 	if response.Code != http.StatusUnauthorized {
 		t.Fatalf("expected status %d, got %d", http.StatusUnauthorized, response.Code)
+	}
+}
+
+func TestRequireAuthRejectsInactiveUser(t *testing.T) {
+	handler := RequireAuth(
+		fakeTokenParser{
+			parse: func(string) (platformauth.Claims, error) {
+				return platformauth.Claims{UserID: uuid.New(), Role: "employee"}, nil
+			},
+		},
+		func(context.Context, uuid.UUID) (bool, error) {
+			return false, nil
+		},
+	)(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		t.Fatal("next handler must not be called")
+	}))
+
+	request := httptest.NewRequest(http.MethodGet, "/", nil)
+	request.Header.Set("Authorization", "Bearer valid-token")
+	response := httptest.NewRecorder()
+
+	handler.ServeHTTP(response, request)
+
+	if response.Code != http.StatusUnauthorized {
+		t.Fatalf("expected status %d, got %d", http.StatusUnauthorized, response.Code)
+	}
+}
+
+func TestRequireAuthReturnsUnavailableWhenStatusCheckFails(t *testing.T) {
+	handler := RequireAuth(
+		fakeTokenParser{
+			parse: func(string) (platformauth.Claims, error) {
+				return platformauth.Claims{UserID: uuid.New(), Role: "employee"}, nil
+			},
+		},
+		func(context.Context, uuid.UUID) (bool, error) {
+			return false, errors.New("database unavailable")
+		},
+	)(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		t.Fatal("next handler must not be called")
+	}))
+
+	request := httptest.NewRequest(http.MethodGet, "/", nil)
+	request.Header.Set("Authorization", "Bearer valid-token")
+	response := httptest.NewRecorder()
+
+	handler.ServeHTTP(response, request)
+
+	if response.Code != http.StatusServiceUnavailable {
+		t.Fatalf("expected status %d, got %d", http.StatusServiceUnavailable, response.Code)
 	}
 }

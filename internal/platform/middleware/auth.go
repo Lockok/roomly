@@ -24,7 +24,9 @@ type TokenParser interface {
 	Parse(tokenString string) (platformauth.Claims, error)
 }
 
-func RequireAuth(tokens TokenParser) func(http.Handler) http.Handler {
+type ActiveUserChecker func(ctx context.Context, userID uuid.UUID) (bool, error)
+
+func RequireAuth(tokens TokenParser, activeUserCheck ...ActiveUserChecker) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			header := r.Header.Get("Authorization")
@@ -52,6 +54,29 @@ func RequireAuth(tokens TokenParser) func(http.Handler) http.Handler {
 
 				httputil.WriteError(w, http.StatusUnauthorized, code, message)
 				return
+			}
+
+			if len(activeUserCheck) > 0 {
+				isActive, err := activeUserCheck[0](r.Context(), claims.UserID)
+				if err != nil {
+					httputil.WriteError(
+						w,
+						http.StatusServiceUnavailable,
+						"AUTH_BACKEND_UNAVAILABLE",
+						"unable to verify user status",
+					)
+					return
+				}
+
+				if !isActive {
+					httputil.WriteError(
+						w,
+						http.StatusUnauthorized,
+						"USER_INACTIVE",
+						"user account is inactive",
+					)
+					return
+				}
 			}
 
 			ctx := context.WithValue(
