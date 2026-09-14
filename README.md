@@ -2,6 +2,8 @@
 
 Roomly — REST API для управления переговорными комнатами и бронированиями.
 
+Полный контракт API находится в [openapi.yaml](openapi.yaml).
+
 ## Возможности
 
 * управление переговорными комнатами;
@@ -80,6 +82,15 @@ API доступен по адресу `http://localhost:8080`.
 go test ./...
 ```
 
+Интеграционные тесты репозитория выполняются на PostgreSQL из Docker Compose:
+
+```bash
+docker compose --profile integration run --rm integration-tests
+```
+
+Тестовый контейнер ждёт готовности PostgreSQL, применённых миграций и запускает проверки
+ограничения пересечений бронирований, отмены, соседних интервалов и конкурентных вставок.
+
 ## Health checks
 
 | Метод | Endpoint        | Описание                       |
@@ -132,7 +143,7 @@ Content-Type: application/json
 | ------- | --------------------------------- | ------------------ |
 | `POST`  | `/api/v1/users`                   | публичный          |
 | `POST`  | `/api/v1/auth/login`              | публичный          |
-| `GET`   | `/api/v1/users`                   | публичный          |
+| `GET`   | `/api/v1/users`                   | admin              |
 | `GET`   | `/api/v1/rooms`                   | публичный          |
 | `GET`   | `/api/v1/rooms/available`         | публичный          |
 | `GET`   | `/api/v1/rooms/{id}`              | публичный          |
