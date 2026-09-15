@@ -62,6 +62,11 @@ Invoke-RestMethod http://localhost:8080/health/ready
 
 API доступен по адресу `http://localhost:8080`.
 
+Веб-интерфейс доступен по адресу `http://localhost:5173`.
+
+Он включает вход, поиск свободных комнат, создание бронирования и отмену
+собственных встреч.
+
 ## Переменные окружения
 
 | Переменная          | Описание                 | Пример                   |
@@ -91,12 +96,30 @@ docker compose --profile integration run --rm integration-tests
 Тестовый контейнер ждёт готовности PostgreSQL, применённых миграций и запускает проверки
 ограничения пересечений бронирований, отмены, соседних интервалов и конкурентных вставок.
 
+### Локальная разработка frontend
+
+Если установлен Node.js 22 или новее:
+
+```powershell
+Set-Location web
+npm install
+npm run dev
+```
+
+Без Node.js frontend запускается вместе с приложением:
+
+```powershell
+docker compose up --build
+```
+
 ## Health checks
 
 | Метод | Endpoint        | Описание                       |
 | ----- | --------------- | ------------------------------ |
 | `GET` | `/health/live`  | Приложение запущено            |
 | `GET` | `/health/ready` | Приложение и PostgreSQL готовы |
+| `GET` | `/health`       | Короткий алиас liveness-проверки |
+| `GET` | `/ready`        | Короткий алиас readiness-проверки |
 
 ## Аутентификация
 
@@ -150,6 +173,7 @@ Content-Type: application/json
 | `GET`   | `/api/v1/rooms/{id}/calendar`     | авторизованный     |
 | `POST`  | `/api/v1/rooms`                   | admin              |
 | `PATCH` | `/api/v1/rooms/{id}`              | admin              |
+| `DELETE` | `/api/v1/rooms/{id}`             | admin              |
 | `POST`  | `/api/v1/bookings`                | авторизованный     |
 | `GET`   | `/api/v1/bookings`                | авторизованный     |
 | `GET`   | `/api/v1/bookings/{id}`           | авторизованный     |

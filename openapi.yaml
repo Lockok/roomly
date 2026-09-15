@@ -214,6 +214,19 @@ paths:
         '401': { $ref: '#/components/responses/Unauthorized' }
         '403': { $ref: '#/components/responses/Forbidden' }
         '404': { $ref: '#/components/responses/NotFound' }
+    delete:
+      tags: [Rooms]
+      summary: Deactivate a room without deleting its history (admin only)
+      parameters: [{ $ref: '#/components/parameters/ID' }]
+      responses:
+        '200':
+          description: Deactivated room
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Room' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
   /api/v1/rooms/{id}/calendar:
     get:
       tags: [Bookings]
@@ -379,10 +392,10 @@ components:
         password: { type: string, format: password }
     LoginResponse:
       type: object
-      required: [access_token, expires_at]
+      required: [access_token, token_type]
       properties:
         access_token: { type: string }
-        expires_at: { type: string, format: date-time }
+        token_type: { type: string, example: Bearer }
     CreateUserRequest:
       type: object
       required: [email, password, full_name]

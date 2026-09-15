@@ -9,6 +9,7 @@ import (
 
 	"github.com/Lockok/roomly/internal/platform/httputil"
 	"github.com/Lockok/roomly/internal/platform/middleware"
+	"github.com/Lockok/roomly/internal/platform/optional"
 	"github.com/google/uuid"
 )
 
@@ -335,4 +336,30 @@ func (h *Handler) Update(w http.ResponseWriter, r *http.Request) {
 	}
 
 	httputil.WriteJSON(w, http.StatusOK, NewRoomResponse(updatedRoom))
+}
+
+func (h *Handler) Delete(w http.ResponseWriter, r *http.Request) {
+	id, err := uuid.Parse(r.PathValue("id"))
+	if err != nil {
+		httputil.WriteError(w, http.StatusBadRequest, "INVALID_ROOM_ID", "room ID must be a valid UUID")
+		return
+	}
+
+	isActive := false
+	deletedRoom, err := h.useCase.Update(r.Context(), UpdateInput{
+		ID:       id,
+		IsActive: optional.Optional[bool]{Set: true, Value: &isActive},
+	})
+	if err != nil {
+		if errors.Is(err, ErrNotFound) {
+			httputil.WriteError(w, http.StatusNotFound, "ROOM_NOT_FOUND", "room not found")
+			return
+		}
+
+		slog.Error("delete room failed", "request_id", middleware.GetRequestID(r.Context()), "error", err)
+		httputil.WriteError(w, http.StatusInternalServerError, "INTERNAL_ERROR", "internal server error")
+		return
+	}
+
+	httputil.WriteJSON(w, http.StatusOK, NewRoomResponse(deletedRoom))
 }
