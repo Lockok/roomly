@@ -82,6 +82,8 @@ func main() {
 
 	mux.HandleFunc("GET /health/live", health.Live)
 	mux.HandleFunc("GET /health/ready", health.Ready(pool))
+	mux.HandleFunc("GET /health", health.Live)
+	mux.HandleFunc("GET /ready", health.Ready(pool))
 
 	mux.HandleFunc("POST /api/v1/auth/login", authHandler.Login)
 
@@ -91,6 +93,7 @@ func main() {
 	mux.Handle("GET /api/v1/rooms/{id}/calendar", requireAuth(http.HandlerFunc(bookingHandler.RoomCalendar)))
 	mux.HandleFunc("GET /api/v1/rooms/{id}", roomHandler.GetByID)
 	mux.Handle("PATCH /api/v1/rooms/{id}", requireAuth(requireAdmin(http.HandlerFunc(roomHandler.Update))))
+	mux.Handle("DELETE /api/v1/rooms/{id}", requireAuth(requireAdmin(http.HandlerFunc(roomHandler.Delete))))
 	mux.Handle("GET /api/v1/reports/room-usage", requireAuth(requireAdmin(http.HandlerFunc(reportHandler.RoomUsage))))
 
 	mux.HandleFunc("POST /api/v1/users", userHandler.Create)
@@ -106,7 +109,7 @@ func main() {
 
 	handler := middleware.RequestID(
 		middleware.AccessLog(
-			middleware.Recovery(mux),
+			middleware.CORS(middleware.Recovery(mux)),
 		),
 	)
 

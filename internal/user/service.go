@@ -20,6 +20,9 @@ func NewService(repository Repository) *Service {
 func (s *Service) Create(ctx context.Context, input CreateInput) (User, error) {
 	input.Email = strings.TrimSpace(strings.ToLower(input.Email))
 	input.FullName = strings.TrimSpace(input.FullName)
+	if input.Role == "" {
+		input.Role = RoleEmployee
+	}
 
 	if err := input.Validate(); err != nil {
 		return User{}, err

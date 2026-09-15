@@ -82,6 +82,29 @@ func TestServiceCreateNormalizesInput(t *testing.T) {
 	}
 }
 
+func TestServiceCreateDefaultsToEmployeeRole(t *testing.T) {
+	repository := fakeRepository{
+		create: func(_ context.Context, input CreateInput) (User, error) {
+			if input.Role != RoleEmployee {
+				t.Fatalf("expected default role %q, got %q", RoleEmployee, input.Role)
+			}
+
+			return User{ID: uuid.New(), Role: input.Role}, nil
+		},
+	}
+
+	service := NewService(repository)
+
+	_, err := service.Create(context.Background(), CreateInput{
+		Email:    "user@example.com",
+		FullName: "Jane Doe",
+		Password: "secure-password",
+	})
+	if err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+}
+
 func TestServiceCreateRejectsInvalidInput(t *testing.T) {
 	repository := fakeRepository{
 		create: func(_ context.Context, _ CreateInput) (User, error) {
